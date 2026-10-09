@@ -1,0 +1,112 @@
+.footer {
+  background: var(--bg);
+  border-top: var(--border);
+  margin-top: auto;
+}
+
+.footer__gemline {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  height: 3px;
+  opacity: 0.85;
+}
+
+.footer__inner {
+  display: grid;
+  grid-template-columns: 1.6fr repeat(3, 1fr) 1.4fr;
+  gap: var(--space-6);
+  padding-block: clamp(48px, 7vw, 80px) var(--space-7);
+}
+
+.footer__brand {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+}
+
+.footer__tagline {
+  color: var(--text-muted);
+  max-width: 280px;
+}
+
+.footer__heading {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  font-weight: 500;
+  color: var(--ink);
+  margin-bottom: var(--space-4);
+}
+
+.footer__col ul {
+  display: grid;
+  gap: 2px;
+}
+
+.footer__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  transition: color var(--transition);
+}
+
+.footer__link:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.footer__email {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 36px;
+  color: var(--ink-soft);
+  font-size: var(--fs-sm);
+  word-break: break-all;
+}
+
+.footer__email:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.footer__note {
+  font-size: var(--fs-xs);
+  color: var(--text-subtle);
+  margin-top: var(--space-2);
+}
+
+.footer__bottom {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding-block: var(--space-5);
+  border-top: var(--border);
+  font-size: var(--fs-xs);
+  color: var(--text-subtle);
+}
+
+@media (max-width: 1023px) {
+  .footer__inner {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .footer__brand {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 639px) {
+  .footer__inner {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-5);
+  }
+
+  .footer__inner > .footer__col:last-child {
+    grid-column: 1 / -1;
+  }
+}

@@ -1,0 +1,195 @@
+/* Shared styles for Input, Select, and Textarea */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.field__label {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+.field__optional {
+  font-weight: 400;
+  color: var(--text-subtle);
+}
+
+.field__control {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.field__input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-size: var(--fs-base);
+  transition:
+    border-color var(--transition),
+    box-shadow var(--transition);
+  appearance: none;
+}
+
+textarea.field__input {
+  min-height: 110px;
+  padding: var(--space-3) var(--space-4);
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.field__input::placeholder {
+  color: var(--text-subtle);
+}
+
+.field__input:hover {
+  border-color: var(--line-strong);
+}
+
+.field__input:focus,
+.field__input:focus-visible {
+  outline: none;
+  border-color: var(--bronze-light);
+  box-shadow: 0 0 0 3px rgba(179, 148, 101, 0.18);
+}
+
+.field__input:disabled {
+  background: var(--surface-soft);
+  color: var(--text-subtle);
+  cursor: not-allowed;
+}
+
+.field.has-error .field__input {
+  border-color: var(--error);
+}
+
+.field.has-error .field__input:focus {
+  box-shadow: 0 0 0 3px rgba(176, 74, 74, 0.14);
+}
+
+.field__control.has-icon .field__input {
+  padding-left: 46px;
+}
+
+.field__control.has-toggle .field__input {
+  padding-right: 52px;
+}
+
+.field__icon {
+  position: absolute;
+  left: 16px;
+  color: var(--text-subtle);
+  pointer-events: none;
+}
+
+.field__toggle {
+  position: absolute;
+  right: 4px;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+}
+
+.field__toggle:hover {
+  color: var(--ink);
+}
+
+.field__select {
+  padding-right: 44px;
+  cursor: pointer;
+}
+
+.field__chevron {
+  position: absolute;
+  right: 14px;
+  color: var(--ink-soft);
+  pointer-events: none;
+}
+
+.field__hint {
+  font-size: var(--fs-xs);
+  color: var(--text-subtle);
+}
+
+.field__error {
+  font-size: var(--fs-xs);
+  color: var(--error);
+  font-weight: 500;
+}
+
+/* Grid helper for forms */
+.form-grid {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.form-grid--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.form-grid .span-2 {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 639px) {
+  .form-grid--2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Checkbox */
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  cursor: pointer;
+  font-size: var(--fs-sm);
+  color: var(--ink-soft);
+}
+
+.checkbox input {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  background: var(--surface);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition:
+    background var(--transition),
+    border-color var(--transition);
+}
+
+.checkbox input::after {
+  content: '';
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) translate(-1px, -1px);
+  opacity: 0;
+}
+
+.checkbox input:checked {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.checkbox input:checked::after {
+  opacity: 1;
+}

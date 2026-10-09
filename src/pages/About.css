@@ -1,0 +1,216 @@
+.about-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-5);
+  padding: clamp(24px, 5vw, 56px) 0 clamp(48px, 7vw, 88px);
+}
+
+.about-hero__title {
+  font-size: clamp(2.75rem, 6.5vw, 5rem);
+  line-height: 1.05;
+}
+
+.about-hero__lead {
+  max-width: 640px;
+  font-size: var(--fs-md);
+  line-height: 1.8;
+  color: var(--text-muted);
+}
+
+.about-story {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(28px, 6vw, 80px);
+  align-items: center;
+  padding: clamp(24px, 4vw, 48px);
+  background: var(--linen);
+  border-radius: var(--radius-sm);
+}
+
+.about-story__media {
+  aspect-ratio: 4 / 5;
+  max-height: 520px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.about-story__text {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.about-story__text p {
+  color: var(--text-muted);
+  line-height: 1.8;
+}
+
+.about-pieces {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+
+.about-piece {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.about-piece__media {
+  display: block;
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-bottom: var(--space-2);
+  transition:
+    transform var(--transition),
+    box-shadow var(--transition);
+}
+
+.about-piece:hover .about-piece__media {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+.about-piece__title {
+  font-size: var(--fs-xl);
+}
+
+.about-piece p {
+  font-size: var(--fs-sm);
+}
+
+.about-values {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.about-value {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  padding: var(--space-5);
+  background: var(--surface-soft);
+  border: var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.about-value svg {
+  color: var(--bronze);
+  margin-bottom: var(--space-2);
+}
+
+.about-value h3 {
+  font-family: var(--font-serif);
+  font-size: var(--fs-lg);
+  font-weight: 500;
+}
+
+.about-value p {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.about-team {
+  scroll-margin-top: calc(var(--nav-height) + 24px);
+}
+
+.about-team__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+
+.about-member {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-4);
+  background: var(--surface);
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  height: 100%;
+}
+
+.about-member__avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--linen);
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  color: var(--ink);
+  box-shadow:
+    0 0 0 3px var(--surface),
+    0 0 0 5px var(--ring, var(--bronze-light));
+  margin-bottom: var(--space-3);
+}
+
+.about-member__name {
+  font-size: var(--fs-lg);
+  line-height: 1.25;
+}
+
+.about-member__role {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bronze);
+}
+
+.about-contact {
+  scroll-margin-top: calc(var(--nav-height) + 24px);
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: var(--space-4);
+  margin-top: clamp(40px, 6vw, 72px);
+  padding: clamp(40px, 6vw, 72px) var(--space-5);
+  background: var(--linen);
+  border-radius: var(--radius-sm);
+}
+
+.about-contact .btn {
+  white-space: normal;
+  word-break: break-all;
+}
+
+@media (max-width: 1023px) {
+  .about-pieces {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .about-values {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .about-story {
+    grid-template-columns: 1fr;
+  }
+
+  .about-story__media {
+    aspect-ratio: 4 / 3;
+  }
+}
+
+@media (max-width: 479px) {
+  .about-values {
+    grid-template-columns: 1fr;
+  }
+
+  .about-team__grid {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+  }
+
+  .about-member {
+    padding: var(--space-5) var(--space-2);
+  }
+}

@@ -1,0 +1,42 @@
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  min-height: 44px;
+}
+
+.logo__word {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 1.75rem;
+  letter-spacing: 0.2em;
+  line-height: 1;
+  /* trailing letter-spacing nudges the sparkle; compensate */
+  margin-right: -0.2em;
+}
+
+.logo__mark {
+  color: var(--bronze-light);
+  margin-left: 0.3em;
+  transition: transform 400ms ease;
+}
+
+.logo:hover .logo__mark {
+  transform: rotate(45deg);
+}
+
+.logo--sm .logo__word {
+  font-size: 1.35rem;
+}
+
+.logo--lg .logo__word {
+  font-size: 2rem;
+}
+
+@media (max-width: 639px) {
+  .logo--md .logo__word {
+    font-size: 1.35rem;
+    letter-spacing: 0.16em;
+  }
+}

@@ -1,0 +1,234 @@
+.product-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.product-card__media {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--sand);
+  transition:
+    box-shadow var(--transition),
+    transform var(--transition);
+}
+
+.product-card:hover .product-card__media {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-3px);
+}
+
+.product-card__image-link {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.product-card__image {
+  width: 100%;
+  height: 100%;
+  transition: transform 600ms ease;
+}
+
+.product-card:hover .product-card__image {
+  transform: scale(1.04);
+}
+
+.product-card.is-oos .product-card__image {
+  filter: saturate(0.55);
+  opacity: 0.85;
+}
+
+.product-card__badges {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.product-card__heart {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform var(--transition),
+    background var(--transition);
+}
+
+.product-card__heart:hover {
+  background: #fff;
+  transform: scale(1.06);
+}
+
+.product-card__heart.is-active svg {
+  color: var(--stone-red);
+  fill: var(--stone-red);
+}
+
+.product-card__quick {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity var(--transition),
+    transform var(--transition),
+    background var(--transition);
+}
+
+.product-card:hover .product-card__quick,
+.product-card__quick:focus-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Touch devices: always show Quick View */
+@media (hover: none) {
+  .product-card__quick {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.product-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: var(--space-4);
+  flex: 1;
+}
+
+.product-card__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-subtle);
+}
+
+.product-card__type {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.product-card__type .stone-dot {
+  width: 8px;
+  height: 8px;
+}
+
+.product-card__name {
+  font-family: var(--font-serif);
+  font-size: 1.35rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--ink-soft);
+}
+
+.product-card__name a {
+  transition: color var(--transition);
+}
+
+.product-card__name a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 1px;
+}
+
+.product-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: auto;
+  padding-top: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.product-card__price {
+  font-size: var(--fs-base);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* Grid: 4 desktop, 3 tablet, 2 mobile */
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(28px, 3vw, 40px) clamp(16px, 2vw, 28px);
+}
+
+.product-grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 1023px) {
+  .product-grid,
+  .product-grid--3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .product-grid,
+  .product-grid--3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 639px) {
+  .product-card__name {
+    font-size: 1.15rem;
+  }
+
+  .product-card__meta > span:last-child {
+    display: none;
+  }
+
+  .product-card__footer .btn {
+    width: 100%;
+  }
+
+  .product-card__quick {
+    min-height: 38px;
+    font-size: var(--fs-xs);
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+  }
+
+  .product-card__badges {
+    top: 8px;
+    left: 8px;
+  }
+
+  .product-card__heart {
+    top: 4px;
+    right: 4px;
+  }
+}
+
+@media (max-width: 359px) {
+  .product-grid,
+  .product-grid--3 {
+    grid-template-columns: 1fr;
+  }
+}

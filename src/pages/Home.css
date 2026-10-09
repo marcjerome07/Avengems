@@ -1,0 +1,241 @@
+/* ---------------- Hero ---------------- */
+.hero {
+  padding-top: var(--space-4);
+}
+
+.hero__inner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: min(720px, calc(100vh - 140px));
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.hero__text {
+  background: var(--linen);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: var(--space-5);
+  padding: clamp(40px, 5.5vw, 96px);
+}
+
+.hero__title {
+  font-size: var(--fs-hero);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  max-width: 9ch;
+}
+
+.hero__body {
+  font-size: var(--fs-md);
+  line-height: 1.8;
+  color: var(--text-muted);
+  max-width: 460px;
+}
+
+.hero__actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+}
+
+.hero__diamonds {
+  margin-top: var(--space-4);
+}
+
+.hero__media {
+  position: relative;
+  min-height: 360px;
+  background: var(--ink);
+}
+
+.hero-visual {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------------- Sections ---------------- */
+.home-underlined {
+  border-bottom: 1px solid var(--ink);
+  padding-bottom: 6px;
+}
+
+.home-underlined:hover {
+  text-decoration: none;
+}
+
+/* ---------------- Packages teaser ---------------- */
+.packages-teaser {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-6);
+  padding: clamp(32px, 5vw, 56px) clamp(24px, 5vw, 64px);
+  background: var(--linen);
+  border-radius: var(--radius-sm);
+  border: var(--border);
+  position: relative;
+  overflow: hidden;
+}
+
+.packages-teaser::after {
+  /* faint hexagon motif */
+  content: '';
+  position: absolute;
+  right: -60px;
+  top: -60px;
+  width: 260px;
+  height: 260px;
+  border: 1px solid var(--bronze-light);
+  opacity: 0.25;
+  clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0 50%);
+  pointer-events: none;
+}
+
+.packages-teaser__text {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 620px;
+}
+
+.packages-teaser__title {
+  font-size: var(--fs-2xl);
+}
+
+/* ---------------- Brand promise ---------------- */
+.promise-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-6);
+  padding-block: var(--space-6);
+  border-block: var(--border);
+}
+
+.promise {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+}
+
+.promise__icon {
+  color: var(--bronze);
+  margin-bottom: var(--space-2);
+}
+
+.promise__title {
+  font-family: var(--font-serif);
+  font-size: var(--fs-lg);
+  font-weight: 500;
+}
+
+.promise__text {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+/* ---------------- Newsletter ---------------- */
+.newsletter {
+  background: var(--surface-soft);
+  border-top: var(--border);
+}
+
+.newsletter__inner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: var(--space-6);
+  padding-block: clamp(48px, 6vw, 72px);
+}
+
+.newsletter__title {
+  font-size: var(--fs-2xl);
+  margin-bottom: var(--space-2);
+}
+
+.newsletter__form {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.newsletter__form .field {
+  flex: 1;
+}
+
+.newsletter__form .field__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.newsletter__form .btn {
+  min-height: 48px;
+}
+
+/* ---------------- Responsive ---------------- */
+@media (max-width: 1023px) {
+  .hero__inner {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .hero__media {
+    min-height: 420px;
+    order: -1;
+  }
+
+  .promise-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .newsletter__inner {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 639px) {
+  .hero {
+    padding-inline: 0;
+    padding-top: 0;
+  }
+
+  .hero__inner {
+    border-radius: 0;
+  }
+
+  .hero__media {
+    min-height: 300px;
+  }
+
+  .hero__text {
+    padding: var(--space-7) var(--gutter);
+  }
+
+  .hero__actions,
+  .hero__actions .btn {
+    width: 100%;
+  }
+
+  .packages-teaser {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .promise-row {
+    grid-template-columns: 1fr;
+    gap: var(--space-5);
+  }
+
+  .newsletter__form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

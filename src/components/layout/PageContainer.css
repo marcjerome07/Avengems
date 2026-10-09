@@ -1,0 +1,67 @@
+.page {
+  padding-block: clamp(32px, 5vw, 64px) clamp(56px, 8vw, 104px);
+}
+
+.page--narrow {
+  max-width: calc(560px + var(--gutter) * 2);
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-5);
+  flex-wrap: wrap;
+  margin-bottom: clamp(28px, 4vw, 48px);
+}
+
+.page-header .eyebrow {
+  margin-bottom: var(--space-4);
+}
+
+.page-header--center {
+  justify-content: center;
+  text-align: center;
+}
+
+.page-header--center .eyebrow {
+  justify-content: center;
+}
+
+.page-header__subtitle {
+  margin-top: var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--fs-md);
+  max-width: 560px;
+}
+
+.page-header--center .page-header__subtitle {
+  margin-inline: auto;
+}
+
+/* Breadcrumbs */
+.breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-subtle);
+  margin-bottom: var(--space-5);
+  list-style: none;
+  padding: 0;
+}
+
+.breadcrumbs li:not(:last-child)::after {
+  content: '/';
+  margin-left: var(--space-2);
+  color: var(--line-strong);
+}
+
+.breadcrumbs a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+.breadcrumbs [aria-current='page'] {
+  color: var(--ink-soft);
+}

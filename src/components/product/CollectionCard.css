@@ -1,0 +1,114 @@
+.collection-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.collection-grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+
+.collection-card {
+  height: 100%;
+}
+
+.collection-card__link {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-4) var(--space-5);
+  background: var(--surface-soft);
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  transition:
+    transform var(--transition),
+    border-color var(--transition),
+    box-shadow var(--transition);
+}
+
+.collection-card__link:hover {
+  transform: translateY(-3px);
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-md);
+}
+
+.stone-gem {
+  flex-shrink: 0;
+  transition: transform 500ms ease;
+}
+
+.collection-card__link:hover .stone-gem {
+  transform: translateY(-2px) rotate(-4deg);
+}
+
+.collection-card__title {
+  font-size: 1.75rem;
+  margin-top: var(--space-3);
+}
+
+.collection-card__tagline {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.collection-card__stone {
+  margin-top: var(--space-2);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--bronze);
+}
+
+.collection-card__desc {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  line-height: 1.65;
+}
+
+.collection-card__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: var(--space-4);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--ink);
+  min-height: 44px;
+}
+
+.collection-card__link:hover .collection-card__cta {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+@media (max-width: 1199px) {
+  .collection-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .collection-grid,
+  .collection-grid--3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+  }
+
+  .collection-card__link {
+    padding: var(--space-5) var(--space-3) var(--space-4);
+  }
+
+  .collection-card__desc {
+    display: none;
+  }
+
+  .stone-gem {
+    width: 64px;
+    height: 64px;
+  }
+}

@@ -1,0 +1,110 @@
+.confirm.page--narrow {
+  max-width: calc(680px + var(--gutter) * 2);
+}
+
+.confirm__hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+.confirm__icon {
+  width: 88px;
+  height: 88px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--success-bg);
+  color: var(--success);
+  margin-bottom: var(--space-3);
+  animation: fade-up 500ms ease both;
+}
+
+.confirm__title {
+  font-size: var(--fs-3xl);
+}
+
+.confirm__lead {
+  font-size: var(--fs-md);
+  color: var(--text-muted);
+}
+
+.confirm__card {
+  display: grid;
+  gap: var(--space-5);
+  padding: clamp(20px, 4vw, 36px);
+  background: var(--surface);
+  border: var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.confirm__facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding-bottom: var(--space-5);
+  border-bottom: var(--border);
+}
+
+.confirm__facts dt {
+  font-size: var(--fs-xs);
+  color: var(--text-subtle);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.confirm__facts dd {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.confirm__number {
+  font-family: var(--font-serif);
+  font-size: var(--fs-lg) !important;
+}
+
+.confirm__section {
+  display: grid;
+  gap: 4px;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.confirm__section h2 {
+  font-family: var(--font-sans);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink);
+  margin-bottom: var(--space-3);
+}
+
+.confirm__payment {
+  margin-top: var(--space-2);
+  color: var(--ink-soft);
+}
+
+.confirm__actions {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: var(--space-6);
+}
+
+@media (max-width: 639px) {
+  .confirm__facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .confirm__actions .btn {
+    flex: 1 1 100%;
+  }
+}

@@ -1,0 +1,133 @@
+.summary-card {
+  background: var(--surface-soft);
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-5);
+  display: grid;
+  gap: var(--space-4);
+}
+
+.summary-card__title {
+  font-size: var(--fs-xl);
+}
+
+.totals {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.totals__row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.totals__row dd {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.totals__free {
+  color: var(--success);
+  font-weight: 500;
+}
+
+.totals__row--total {
+  border-top: var(--border);
+  padding-top: var(--space-3);
+  font-size: var(--fs-md);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.totals__row--total dd {
+  color: var(--ink);
+  font-size: var(--fs-lg);
+}
+
+.totals__hint {
+  display: grid;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  color: var(--bronze);
+}
+
+.totals__bar {
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.totals__bar span {
+  display: block;
+  height: 100%;
+  background: var(--bronze-light);
+  transition: width 400ms ease;
+}
+
+.mini-items {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.mini-item {
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.mini-item__media {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-sm);
+  border: var(--border);
+}
+
+.mini-item__media > svg,
+.mini-item__media > img {
+  border-radius: var(--radius-sm);
+}
+
+.mini-item__qty {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  display: grid;
+  place-items: center;
+}
+
+.mini-item__name {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+.mini-item__opts {
+  font-size: var(--fs-xs);
+  color: var(--text-subtle);
+}
+
+.mini-item__custom {
+  color: var(--bronze);
+}
+
+.mini-item__price {
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  font-weight: 500;
+}

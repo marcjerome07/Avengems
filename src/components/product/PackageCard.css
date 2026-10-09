@@ -1,0 +1,100 @@
+.package-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.package-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-5) var(--space-5);
+  background: var(--surface);
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  transition:
+    transform var(--transition),
+    box-shadow var(--transition),
+    border-color var(--transition);
+}
+
+.package-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--line-strong);
+}
+
+.package-card--signature {
+  border: 1px solid var(--bronze-light);
+  background: linear-gradient(180deg, #fbf7f0 0%, var(--surface) 60%);
+  box-shadow: 0 0 0 1px var(--bronze-light);
+}
+
+.package-card--signature:hover {
+  border-color: var(--bronze-light);
+}
+
+.package-card__ribbon {
+  position: absolute;
+  top: -12px;
+  left: var(--space-5);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.6875rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.package-card__ribbon svg {
+  color: var(--stone-yellow-light);
+}
+
+.package-card__name {
+  font-size: 1.65rem;
+}
+
+.package-card__includes {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  line-height: 1.65;
+  flex: 1;
+}
+
+.package-card__pieces {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--bronze);
+}
+
+.package-card__price {
+  font-size: var(--fs-lg);
+  font-weight: 500;
+  color: var(--ink);
+  margin-bottom: var(--space-2);
+}
+
+@media (max-width: 1199px) {
+  .package-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .package-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 539px) {
+  .package-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-5);
+  }
+}

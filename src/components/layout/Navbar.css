@@ -1,0 +1,230 @@
+.announcement {
+  background: var(--linen);
+  color: var(--ink-soft);
+  text-align: center;
+  font-size: var(--fs-sm);
+  letter-spacing: 0.02em;
+  padding: 12px var(--gutter);
+}
+
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-nav);
+  background: rgba(250, 248, 245, 0.94);
+  backdrop-filter: saturate(1.2) blur(8px);
+  border-bottom: 1px solid transparent;
+  transition:
+    border-color var(--transition),
+    box-shadow var(--transition);
+}
+
+.navbar.is-scrolled {
+  border-bottom-color: var(--line);
+  box-shadow: var(--shadow-sm);
+}
+
+.navbar__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  height: var(--nav-height);
+}
+
+.navbar__links {
+  display: flex;
+  align-items: center;
+  gap: clamp(20px, 3.5vw, 52px);
+}
+
+.navbar__link {
+  position: relative;
+  padding: 10px 0;
+  font-size: var(--fs-md);
+  color: var(--ink-soft);
+  transition: color var(--transition);
+}
+
+.navbar__link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 4px;
+  height: 1px;
+  background: var(--ink);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--transition);
+}
+
+.navbar__link:hover,
+.navbar__link.active {
+  color: var(--ink);
+}
+
+.navbar__link:hover::after,
+.navbar__link.active::after {
+  transform: scaleX(1);
+}
+
+.navbar__actions {
+  display: flex;
+  align-items: center;
+  gap: clamp(4px, 2vw, 28px);
+}
+
+.nav-icon {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+  border-radius: var(--radius-pill);
+  transition: background var(--transition);
+}
+
+.nav-icon:hover,
+.nav-icon.is-active {
+  background: var(--surface-soft);
+}
+
+.nav-icon__badge {
+  position: absolute;
+  top: 3px;
+  right: 1px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
+
+.nav-icon__status {
+  position: absolute;
+  bottom: 9px;
+  right: 9px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 2px var(--bg);
+}
+
+.navbar__burger {
+  display: none;
+}
+
+/* Account dropdown */
+.account-menu {
+  position: relative;
+}
+
+.account-menu__panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  width: 240px;
+  background: var(--surface);
+  border: var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-2);
+  animation: fade-up 180ms ease both;
+}
+
+.account-menu__head {
+  padding: var(--space-3) var(--space-3) var(--space-3);
+  border-bottom: var(--border);
+  margin-bottom: var(--space-2);
+}
+
+.account-menu__hello {
+  font-family: var(--font-serif);
+  font-size: var(--fs-lg);
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.account-menu__email {
+  font-size: var(--fs-xs);
+  color: var(--text-subtle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-menu__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.account-menu__item {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  color: var(--ink-soft);
+  text-align: left;
+}
+
+.account-menu__item svg {
+  color: var(--text-subtle);
+}
+
+.account-menu__item:hover {
+  background: var(--surface-soft);
+  color: var(--ink);
+}
+
+.account-menu__logout {
+  border-top: var(--border);
+  margin-top: var(--space-2);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+
+@media (max-width: 767px) {
+  :root {
+    --nav-height: 64px;
+  }
+
+  .navbar__links,
+  .navbar__account {
+    display: none;
+  }
+
+  .navbar__burger {
+    display: grid;
+    margin-left: -10px;
+  }
+
+  .navbar__inner {
+    gap: var(--space-2);
+  }
+
+  .navbar__inner > .logo {
+    margin-right: auto;
+  }
+
+  .navbar__actions {
+    gap: 0;
+    margin-right: -10px;
+  }
+
+  .announcement {
+    font-size: var(--fs-xs);
+    padding-block: 9px;
+  }
+}

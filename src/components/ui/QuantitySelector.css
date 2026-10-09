@@ -1,0 +1,44 @@
+.qty {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.qty__btn {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-soft);
+  border-radius: var(--radius-md);
+  transition: background var(--transition);
+}
+
+.qty__btn:hover:not(:disabled) {
+  background: var(--surface-soft);
+}
+
+.qty__btn:disabled {
+  color: var(--line-strong);
+}
+
+.qty__value {
+  min-width: 32px;
+  text-align: center;
+  font-weight: 500;
+  font-size: var(--fs-sm);
+}
+
+.qty--sm .qty__btn {
+  width: 36px;
+  height: 36px;
+}
+
+@media (pointer: coarse) {
+  .qty--sm .qty__btn {
+    width: 44px;
+    height: 44px;
+  }
+}

@@ -1,0 +1,12 @@
+.gem-visual {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: var(--sand);
+}
+
+.gem-visual .gem {
+  transition: transform 500ms ease;
+  transform-box: fill-box;
+  transform-origin: center;
+}

@@ -1,0 +1,97 @@
+.stepper {
+  display: flex;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  gap: var(--space-2);
+}
+
+.stepper__step {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.stepper__step:not(:last-child)::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+  min-width: 12px;
+}
+
+.stepper__step.is-done:not(:last-child)::after {
+  background: var(--bronze-light);
+}
+
+.stepper__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  color: var(--text-subtle);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+button.stepper__btn:hover .stepper__label {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.stepper__dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: var(--fs-xs);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.is-current .stepper__btn {
+  color: var(--ink);
+}
+
+.is-current .stepper__dot {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+
+.is-done .stepper__btn {
+  color: var(--ink-soft);
+}
+
+.is-done .stepper__dot {
+  background: var(--bronze-light);
+  border-color: var(--bronze-light);
+  color: #fff;
+}
+
+@media (max-width: 639px) {
+  .stepper__step.is-current {
+    flex: 1 0 auto;
+  }
+
+  .stepper__step:not(.is-current) {
+    flex: 0 1 auto;
+  }
+
+  .stepper__step:not(:last-child)::after {
+    min-width: 16px;
+  }
+
+  .stepper__step:not(.is-current) .stepper__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
+}

@@ -1,0 +1,38 @@
+.rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  color: var(--text-subtle);
+}
+
+.rating__stars {
+  display: inline-flex;
+  gap: 1px;
+}
+
+.rating__star {
+  position: relative;
+  display: inline-block;
+}
+
+.rating__empty {
+  color: var(--line-strong);
+}
+
+.rating__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  overflow: hidden;
+  color: var(--bronze-light);
+}
+
+.rating__fill svg {
+  max-width: none;
+  fill: var(--bronze-light);
+}
+
+.rating__value {
+  color: var(--ink-soft);
+  font-weight: 500;
+}

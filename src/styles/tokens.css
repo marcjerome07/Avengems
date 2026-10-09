@@ -1,0 +1,99 @@
+/* ==========================================================
+   AVENGEMS DESIGN TOKENS
+   Warm, soft palette. Stone colors are for small accents only.
+   ========================================================== */
+:root {
+  /* ---------- Neutral foundation ---------- */
+  --bg: #faf8f5; /* page background (warm off-white) */
+  --surface: #ffffff; /* inputs, dropdowns, inactive pills */
+  --surface-soft: #f3f0eb; /* collection cards, subtle panels */
+  --linen: #efeae2; /* hero text panel, announcement bar */
+  --sand: #e6dfd4; /* hover fills, image placeholders */
+
+  --ink: #2a2622; /* headings, logo, primary text, dark buttons */
+  --ink-soft: #3a3530; /* nav links, product names */
+  --text-muted: #6e665e; /* body copy, descriptions, card subtitles */
+  --text-subtle: #8f877e; /* meta text, captions ("Ring · Purple") */
+
+  --line: #e4ded5; /* card borders, input borders, pill borders */
+  --line-strong: #d6cec2; /* hovered borders, dividers */
+
+  --bronze: #8c6e45; /* eyebrow labels, text links ("Explore pieces") */
+  --bronze-light: #b39465; /* eyebrow rule line, logo sparkle, focus ring */
+
+  /* ---------- Six stone accents (small use only) ---------- */
+  /* base = swatches, dots, footer diamonds, chart series
+     light = gem highlight / top facet     dark = gem shadow / bottom facet */
+  --stone-purple: #9479c2;
+  --stone-purple-light: #c3b0e0;
+  --stone-purple-dark: #6e559c;
+  --stone-blue: #5f8fcb;
+  --stone-blue-light: #a3c3e8;
+  --stone-blue-dark: #3f6da6;
+  --stone-red: #b5505e;
+  --stone-red-light: #de8e98;
+  --stone-red-dark: #8e3442;
+  --stone-orange: #e0965c;
+  --stone-orange-light: #f3c49b;
+  --stone-orange-dark: #bc6f35;
+  --stone-green: #6f927c;
+  --stone-green-light: #a9c4b1;
+  --stone-green-dark: #4d6e59;
+  --stone-yellow: #d2ac45;
+  --stone-yellow-light: #ebd488;
+  --stone-yellow-dark: #a8842a;
+
+  /* ---------- Status (muted) ---------- */
+  --success: #5e8a6b;
+  --success-bg: #eaf1ec;
+  --error: #b04a4a;
+  --error-bg: #f6e9e7;
+  --warning: #b88a3a;
+  --warning-bg: #f6efe1;
+  --info: #5a7fa8;
+  --info-bg: #e9eff6;
+
+  /* ---------- Typography ---------- */
+  --font-serif: 'Cormorant Garamond', Georgia, serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
+
+  --fs-xs: 0.75rem; /* 12px */
+  --fs-sm: 0.875rem; /* 14px */
+  --fs-base: 1rem; /* 16px */
+  --fs-md: 1.125rem; /* 18px */
+  --fs-lg: 1.375rem; /* 22px */
+  --fs-xl: 1.75rem; /* 28px */
+  --fs-2xl: clamp(2rem, 3.6vw, 2.75rem);
+  --fs-3xl: clamp(2.5rem, 5vw, 3.5rem);
+  --fs-hero: clamp(3.25rem, 7.5vw, 6.25rem);
+
+  /* ---------- Spacing ---------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+
+  --container: 1280px;
+  --gutter: clamp(16px, 4vw, 40px);
+  --nav-height: 76px;
+
+  /* ---------- Shape & depth ---------- */
+  --radius-sm: 4px; /* cards, product images, inputs */
+  --radius-md: 8px; /* buttons, dropdowns, modals */
+  --radius-pill: 999px; /* filter pills, heart button */
+  --border: 1px solid var(--line);
+  --shadow-sm: 0 1px 3px rgba(42, 38, 34, 0.05);
+  --shadow-md: 0 8px 24px rgba(42, 38, 34, 0.08);
+  --shadow-lg: 0 20px 48px rgba(42, 38, 34, 0.14);
+  --transition: 200ms ease;
+
+  --z-nav: 50;
+  --z-overlay: 80;
+  --z-modal: 90;
+  --z-toast: 100;
+}
