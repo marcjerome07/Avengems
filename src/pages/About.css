@@ -156,13 +156,6 @@
   line-height: 1.25;
 }
 
-.about-member__role {
-  font-size: var(--fs-xs);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--bronze);
-}
-
 .about-contact {
   scroll-margin-top: calc(var(--nav-height) + 24px);
   display: grid;
