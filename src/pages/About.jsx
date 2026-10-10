@@ -129,7 +129,6 @@ export default function About() {
                     {memberInitials(m)}
                   </span>
                   <h3 className="about-member__name">{formatMemberName(m)}</h3>
-                  <p className="about-member__role">{m.role}</p>
                 </li>
               ))
             : Array.from({ length: 7 }, (_, i) => (
