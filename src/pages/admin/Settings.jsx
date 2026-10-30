@@ -3,7 +3,7 @@ import AdminHeader from '../../components/admin/AdminHeader';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import Skeleton from '../../components/ui/Skeleton';
-import { useToast } from '../../context/ToastContext';
+import { useToast } from '../../context/useToast';
 import useServiceData from '../../hooks/useServiceData';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import { getSettings, saveSettings } from '../../services/adminService';

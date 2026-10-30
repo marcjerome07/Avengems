@@ -5,7 +5,7 @@ import Button from '../../components/ui/Button';
 import Skeleton from '../../components/ui/Skeleton';
 import { StatusBadge } from '../../components/ui/Badge';
 import { TotalsList, MiniItems } from '../../components/cart/OrderSummary';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 import { getOrderById, PAYMENT_LABELS } from '../../services/orderService';
 import useServiceData from '../../hooks/useServiceData';
 import useDocumentTitle from '../../hooks/useDocumentTitle';

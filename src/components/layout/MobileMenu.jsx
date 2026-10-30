@@ -3,8 +3,8 @@ import { LayoutDashboard, LogOut, Package, UserRound, Heart, LogIn, UserPlus } f
 import Modal from '../ui/Modal';
 import Logo from './Logo';
 import { NAV_LINKS } from './navLinks';
-import { useAuth } from '../../context/AuthContext';
-import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/useAuth';
+import { useToast } from '../../context/useToast';
 import { DIAMOND_STYLES } from '../../utils/stoneTheme';
 import './MobileMenu.css';
 
@@ -15,9 +15,13 @@ export default function MobileMenu({ open, onClose }) {
 
   async function handleLogout() {
     onClose();
-    await logout();
-    showToast('You have been logged out.', { type: 'info' });
-    navigate('/');
+    try {
+      await logout();
+      showToast('You have been logged out.', { type: 'info' });
+      navigate('/');
+    } catch (error) {
+      showToast(error.message, { type: 'error', duration: 8000 });
+    }
   }
 
   return (

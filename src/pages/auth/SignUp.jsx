@@ -5,7 +5,7 @@ import AuthShell, { FormAlert } from '../../components/auth/AuthShell';
 import PasswordChecklist from '../../components/auth/PasswordChecklist';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
-import { useToast } from '../../context/ToastContext';
+import { useToast } from '../../context/useToast';
 import { register } from '../../services/authService';
 import { runValidators, validateName, validateEmail, validatePassword, validatePasswordMatch } from '../../utils/validators';
 
@@ -29,9 +29,9 @@ export default function SignUp() {
   async function handleSubmit(e) {
     e.preventDefault();
     const result = runValidators(values, {
-      name: validateName,
+      name: (v) => v.length > 100 ? 'Use at most 100 characters for your name.' : validateName(v),
       email: validateEmail,
-      password: validatePassword,
+      password: (v) => v.length > 128 ? 'Use at most 128 characters for your password.' : validatePassword(v),
       confirm: (v, all) => validatePasswordMatch(all.password, v),
     });
     setErrors(result);
@@ -39,12 +39,11 @@ export default function SignUp() {
 
     setLoading(true);
     try {
-      const { email } = await register({ name: values.name, email: values.email, password: values.password });
-      showToast('Account created. Check your email for a verification code.', { type: 'success' });
+      const { email, message } = await register({ name: values.name, email: values.email, password: values.password });
+      showToast(message, { type: 'info' });
       navigate(`/verify-email?email=${encodeURIComponent(email)}`);
     } catch (err) {
-      if (err.code === 'EMAIL_EXISTS') setErrors((x) => ({ ...x, email: err.message }));
-      else setFormError(err.message ?? 'Something went wrong. Please try again.');
+      setFormError(err.message ?? 'Something went wrong. Please try again.');
       setLoading(false);
     }
   }
@@ -101,7 +100,7 @@ export default function SignUp() {
           {loading ? 'Creating account…' : 'Create Account'}
         </Button>
         <p className="demo-box__text" style={{ textAlign: 'center' }}>
-          Prototype: your account is saved only in this browser.
+          Check your email to complete confirmation before signing in.
         </p>
       </form>
     </AuthShell>

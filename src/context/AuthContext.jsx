@@ -1,56 +1,38 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import * as authService from '../services/authService';
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
+import { authSession } from '../services/authSession';
+import { AuthContext } from './useAuth';
 
-const AuthContext = createContext(null);
-
-export function AuthProvider({ children }) {
-  // Start from the stored session so the UI doesn't flash "logged out" on refresh.
-  const [user, setUser] = useState(() => authService.getSession());
-
+export function AuthProvider({ children, session = authSession }) {
+  const state = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
   useEffect(() => {
-    let active = true;
-    if (!authService.getSession()) return undefined;
-    authService
-      .getCurrentUser()
-      .then((u) => {
-        if (active) setUser(u);
-      })
-      .catch(() => {
-        if (active) setUser(null);
-      });
+    void session.restore();
+    const check = () => { if (document.visibilityState !== 'hidden') void session.restore(); };
+    window.addEventListener('focus', check);
+    window.addEventListener('online', check);
+    document.addEventListener('visibilitychange', check);
+    const timer = window.setInterval(() => {
+      if (session.getSnapshot().status === 'authenticated') check();
+    }, 60000);
     return () => {
-      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', check);
+      window.removeEventListener('online', check);
+      document.removeEventListener('visibilitychange', check);
     };
-  }, []);
-
-  const login = useCallback(async (email, password, remember) => {
-    const u = await authService.login(email, password, remember);
-    setUser(u);
-    return u;
-  }, []);
-
-  const logout = useCallback(async () => {
-    await authService.logout();
-    setUser(null);
-  }, []);
-
-  const value = useMemo(
-    () => ({
-      user,
-      isAuthenticated: Boolean(user),
-      isAdmin: user?.role === 'admin',
-      login,
-      logout,
-      setUser,
-    }),
-    [user, login, logout],
-  );
-
+  }, [session]);
+  const value = useMemo(() => ({
+    user: state.user,
+    loading: state.status === 'initializing',
+    signingOut: state.status === 'signing-out',
+    error: state.error,
+    logoutFailed: state.status === 'logout-error',
+    isAuthenticated: state.status === 'authenticated' && state.user?.verified === true,
+    isAdmin: state.status === 'authenticated' && state.user?.verified === true && state.user.role === 'admin',
+    login: session.login,
+    logout: session.logout,
+    retrySession: session.restore,
+    // The prototype profile screen can only request a server reload, never set identity.
+    setUser: session.restore,
+  }), [state, session]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>');
-  return ctx;
 }

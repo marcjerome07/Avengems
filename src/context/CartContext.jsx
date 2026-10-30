@@ -1,10 +1,9 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as cartService from '../services/cartService';
 import { stoneFromColor } from '../utils/stoneTheme';
 import { getCustomization } from '../utils/customization';
-import { useToast } from './ToastContext';
-
-const CartContext = createContext(null);
+import { useToast } from './useToast';
+import { CartContext } from './useCart';
 const MAX_PER_LINE = 10;
 
 export function CartProvider({ children }) {
@@ -83,10 +82,4 @@ export function CartProvider({ children }) {
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
-}
-
-export function useCart() {
-  const ctx = useContext(CartContext);
-  if (!ctx) throw new Error('useCart must be used inside <CartProvider>');
-  return ctx;
 }

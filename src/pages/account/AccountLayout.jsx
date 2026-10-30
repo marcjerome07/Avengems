@@ -1,8 +1,8 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { LayoutGrid, Package, Heart, UserRound, MapPin, ShieldCheck, LogOut } from 'lucide-react';
 import PageContainer from '../../components/layout/PageContainer';
-import { useAuth } from '../../context/AuthContext';
-import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/useAuth';
+import { useToast } from '../../context/useToast';
 import './Account.css';
 
 const LINKS = [
@@ -20,9 +20,13 @@ export default function AccountLayout() {
   const navigate = useNavigate();
 
   async function handleLogout() {
-    await logout();
-    showToast('You have been logged out.', { type: 'info' });
-    navigate('/');
+    try {
+      await logout();
+      showToast('You have been logged out.', { type: 'info' });
+      navigate('/');
+    } catch (error) {
+      showToast(error.message, { type: 'error', duration: 8000 });
+    }
   }
 
   return (

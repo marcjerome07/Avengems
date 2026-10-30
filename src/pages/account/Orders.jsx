@@ -4,7 +4,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import Button from '../../components/ui/Button';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import OrdersTable from '../../components/account/OrdersTable';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 import { getOrdersByUser, ORDER_STATUSES } from '../../services/orderService';
 import useServiceData from '../../hooks/useServiceData';
 import useDocumentTitle from '../../hooks/useDocumentTitle';

@@ -7,7 +7,7 @@ import Badge from '../ui/Badge';
 import Rating from '../ui/Rating';
 import QuantitySelector from '../ui/QuantitySelector';
 import ProductMedia from './ProductMedia';
-import { useCart } from '../../context/CartContext';
+import { useCart } from '../../context/useCart';
 import { formatPrice } from '../../utils/formatPrice';
 import { stoneVar } from '../../utils/stoneTheme';
 import './QuickViewModal.css';
