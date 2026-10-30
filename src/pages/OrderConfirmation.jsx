@@ -7,7 +7,7 @@ import Skeleton from '../components/ui/Skeleton';
 import EmptyState from '../components/ui/EmptyState';
 import { StatusBadge } from '../components/ui/Badge';
 import { TotalsList, MiniItems } from '../components/cart/OrderSummary';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import { getOrderById, PAYMENT_LABELS } from '../services/orderService';
 import { formatDate, formatPrice } from '../utils/formatPrice';
 import { DIAMOND_STYLES } from '../utils/stoneTheme';

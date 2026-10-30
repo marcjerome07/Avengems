@@ -2,7 +2,7 @@ import { useState } from 'react';
 import AdminHeader from '../../components/admin/AdminHeader';
 import Badge, { StatusBadge } from '../../components/ui/Badge';
 import Skeleton from '../../components/ui/Skeleton';
-import { useToast } from '../../context/ToastContext';
+import { useToast } from '../../context/useToast';
 import useServiceData from '../../hooks/useServiceData';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import { getTeamMembers, formatMemberName, memberInitials, TEAM_ROLES } from '../../services/teamService';

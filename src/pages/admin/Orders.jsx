@@ -5,7 +5,7 @@ import Input from '../../components/ui/Input';
 import EmptyState from '../../components/ui/EmptyState';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { StatusBadge } from '../../components/ui/Badge';
-import { useToast } from '../../context/ToastContext';
+import { useToast } from '../../context/useToast';
 import useServiceData from '../../hooks/useServiceData';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import { getAllOrders, updateOrderStatus } from '../../services/adminService';

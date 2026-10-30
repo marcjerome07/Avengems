@@ -8,7 +8,7 @@ import Skeleton from '../components/ui/Skeleton';
 import HeroVisual from '../components/product/HeroVisual';
 import CollectionCard from '../components/product/CollectionCard';
 import ProductGrid from '../components/product/ProductGrid';
-import { useToast } from '../context/ToastContext';
+import { useToast } from '../context/useToast';
 import { getCollections, getFeaturedProducts, getPackages } from '../services/productService';
 import { formatPriceShort } from '../utils/formatPrice';
 import { validateEmail } from '../utils/validators';

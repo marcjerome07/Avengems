@@ -1,8 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as wishlistService from '../services/wishlistService';
-import { useToast } from './ToastContext';
-
-const WishlistContext = createContext(null);
+import { useToast } from './useToast';
+import { WishlistContext } from './useWishlist';
 
 export function WishlistProvider({ children }) {
   const [ids, setIds] = useState(() => wishlistService.loadWishlist());
@@ -33,10 +32,4 @@ export function WishlistProvider({ children }) {
   const value = useMemo(() => ({ ids, count: ids.length, isWishlisted, toggle, remove }), [ids, isWishlisted, toggle, remove]);
 
   return <WishlistContext.Provider value={value}>{children}</WishlistContext.Provider>;
-}
-
-export function useWishlist() {
-  const ctx = useContext(WishlistContext);
-  if (!ctx) throw new Error('useWishlist must be used inside <WishlistProvider>');
-  return ctx;
 }

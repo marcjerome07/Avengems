@@ -10,11 +10,11 @@ import Badge from '../../components/ui/Badge';
 import EmptyState from '../../components/ui/EmptyState';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import ProductMedia from '../../components/product/ProductMedia';
-import { useToast } from '../../context/ToastContext';
+import { useToast } from '../../context/useToast';
 import useServiceData from '../../hooks/useServiceData';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import {
-  getProducts,
+  getMockProducts as getProducts,
   getCollections,
   getSizePreset,
   createProduct,

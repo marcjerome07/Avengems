@@ -53,7 +53,9 @@ export default function Shop() {
   const filters = useMemo(() => parseFilters(new URLSearchParams(queryString)), [queryString]);
 
   const [results, setResults] = useState({ key: null, items: [] });
+  const [retry, setRetry] = useState(0);
   const loading = results.key !== queryString;
+  const error = !loading && results.error;
   const products = results.items;
   const [collections, setCollections] = useState([]);
   const [searchText, setSearchText] = useState(filters.q);
@@ -77,13 +79,17 @@ export default function Shop() {
   // Fetch whenever the URL filters change.
   useEffect(() => {
     let active = true;
-    getProducts(filters).then(({ items }) => {
-      if (active) setResults({ key: queryString, items });
-    });
+    getProducts(filters)
+      .then(({ items }) => {
+        if (active) setResults({ key: queryString, items });
+      })
+      .catch((error) => {
+        if (active) setResults({ key: queryString, items: [], error });
+      });
     return () => {
       active = false;
     };
-  }, [filters, queryString]);
+  }, [filters, queryString, retry]);
 
   // Sync the search box when the URL changes (e.g. from the navbar search overlay).
   const [syncedQ, setSyncedQ] = useState(filters.q);
@@ -212,7 +218,7 @@ export default function Shop() {
         <section className="shop-results" aria-labelledby="results-count">
           <div className="shop-results__head">
             <p id="results-count" className="shop-results__count" aria-live="polite">
-              {loading ? 'Loading pieces…' : `${products.length} ${products.length === 1 ? 'piece' : 'pieces'}`}
+              {loading ? 'Loading pieces…' : error ? 'Unable to load pieces' : `${products.length} ${products.length === 1 ? 'piece' : 'pieces'}`}
             </p>
             <p className="shop-results__note">Concept collection · Illustrative product visuals</p>
           </div>
@@ -243,13 +249,22 @@ export default function Shop() {
             loading={loading}
             skeletonCount={8}
             empty={
-              <EmptyState
-                icon={SearchX}
-                title="No pieces match your search"
-                message="Try a different stone, widen your price range, or clear your filters to see the full collection."
-              >
-                <Button onClick={clearAll}>Clear filters</Button>
-              </EmptyState>
+              error ? (
+                <EmptyState icon={SearchX} title="Unable to load pieces" message={error.message}>
+                  <Button onClick={() => {
+                    setResults({ key: null, items: [] });
+                    setRetry((value) => value + 1);
+                  }}>Try again</Button>
+                </EmptyState>
+              ) : (
+                <EmptyState
+                  icon={SearchX}
+                  title="No pieces match your search"
+                  message="Try a different stone, widen your price range, or clear your filters to see the full collection."
+                >
+                  <Button onClick={clearAll}>Clear filters</Button>
+                </EmptyState>
+              )
             }
           />
         </section>

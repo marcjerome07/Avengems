@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Mail, CircleAlert, MailWarning, FlaskConical } from 'lucide-react';
+import { Mail, CircleAlert, MailWarning } from 'lucide-react';
 import AuthShell, { FormAlert } from '../../components/auth/AuthShell';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
-import { useAuth } from '../../context/AuthContext';
-import { useToast } from '../../context/ToastContext';
-import { getDemoAccounts } from '../../services/authService';
+import { useAuth } from '../../context/useAuth';
+import { useToast } from '../../context/useToast';
 import { runValidators, validateEmail, validateRequired } from '../../utils/validators';
 
 function GoogleMark() {
@@ -27,13 +26,14 @@ function GoogleMark() {
 }
 
 export default function Login() {
-  const { login, isAuthenticated, isAdmin } = useAuth();
+  const { login, logout, isAuthenticated, isAdmin, loading: initializing, signingOut, error: sessionError, logoutFailed, retrySession } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const from = location.state?.from;
-  const fromPath = from ? `${from.pathname}${from.search ?? ''}${from.hash ?? ''}` : null;
+  const fromPath = from?.pathname?.startsWith('/') && !from.pathname.startsWith('//')
+    ? `${from.pathname}${from.search ?? ''}${from.hash ?? ''}` : null;
 
   const [values, setValues] = useState({
     email: location.state?.email ?? searchParams.get('email') ?? '',
@@ -44,6 +44,9 @@ export default function Login() {
   const [formError, setFormError] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  if (initializing || signingOut) {
+    return <AuthShell title="Welcome Back" docTitle="Log in"><p role="status">Checking your session…</p></AuthShell>;
+  }
   if (isAuthenticated && !loading) {
     return <Navigate to={fromPath ?? (isAdmin ? '/admin' : '/account')} replace />;
   }
@@ -75,43 +78,23 @@ export default function Login() {
     }
   }
 
-  function fillDemo(account) {
-    setValues((v) => ({ ...v, email: account.email, password: account.password }));
-    setErrors({});
-    setFormError(null);
-  }
-
-  const demoAside = (
-    <aside className="demo-box" aria-labelledby="demo-title">
-      <h2 id="demo-title" className="demo-box__title">
-        <FlaskConical size={16} strokeWidth={1.6} aria-hidden="true" /> Demo accounts
-      </h2>
-      <p className="demo-box__text">For presentations. These accounts exist only in this prototype.</p>
-      {getDemoAccounts().map((account) => (
-        <div key={account.email} className="demo-account">
-          <span className="demo-account__role">{account.role === 'admin' ? 'Admin' : 'Customer'}</span>
-          <code>{account.email}</code>
-          <code>{account.password}</code>
-          <Button size="sm" variant="ghost" onClick={() => fillDemo(account)}>
-            Use this account
-          </Button>
-        </div>
-      ))}
-    </aside>
-  );
-
   return (
     <AuthShell
       title="Welcome Back"
       docTitle="Log in"
       subtitle="Log in to track orders, save favorites, and check out faster."
-      aside={demoAside}
       footer={
         <p>
           Don&apos;t have an account? <Link to="/signup">Sign Up</Link>
         </p>
       }
     >
+      {sessionError && !formError && <FormAlert icon={CircleAlert}>
+        <p>{sessionError.message}</p>
+        <Button size="sm" variant="outline" onClick={() => {
+          void (logoutFailed ? logout() : retrySession()).catch((error) => setFormError({ code: error.code, message: error.message }));
+        }}>{logoutFailed ? 'Retry sign out' : 'Retry session check'}</Button>
+      </FormAlert>}
       {from && !formError && <FormAlert type="info">Please log in to continue.</FormAlert>}
 
       {formError?.code === 'UNVERIFIED' ? (

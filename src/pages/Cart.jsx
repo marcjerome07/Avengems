@@ -8,7 +8,7 @@ import QuantitySelector from '../components/ui/QuantitySelector';
 import ProductMedia from '../components/product/ProductMedia';
 import ProductGrid from '../components/product/ProductGrid';
 import { TotalsList } from '../components/cart/OrderSummary';
-import { useCart } from '../context/CartContext';
+import { useCart } from '../context/useCart';
 import { getSuggestedProducts } from '../services/productService';
 import { formatPrice } from '../utils/formatPrice';
 import { stoneVar } from '../utils/stoneTheme';

@@ -1,4 +1,5 @@
-// MOCK SERVICE — replace the body of these functions with real API calls when the backend is ready.
+// Shop listing and product details use the API. Other reads and admin writes
+// remain mocks until their corresponding backend features are integrated.
 //
 // Suggested endpoints:
 //   GET    /api/products?q=&type=&stone=&material=&minPrice=&maxPrice=&inStock=&customizable=&sort=
@@ -57,6 +58,41 @@ function sortProducts(list, sort) {
  * returns { items, total }
  */
 export async function getProducts(filters = {}) {
+  const params = new URLSearchParams();
+  for (const [key, values] of [['type', filters.types], ['stone', filters.stones], ['material', filters.materials]]) {
+    if (values?.length) params.set(key, values.join(','));
+  }
+  for (const key of ['q', 'minPrice', 'maxPrice', 'sort']) {
+    if (filters[key] !== '' && filters[key] != null) params.set(key, String(filters[key]));
+  }
+  for (const key of ['inStock', 'customizable']) {
+    if (filters[key]) params.set(key, 'true');
+  }
+  const query = params.toString();
+  return requestProducts(`/api/products${query ? `?${query}` : ''}`);
+}
+
+async function requestProducts(url) {
+  let response;
+  try {
+    response = await fetch(url);
+  } catch {
+    throw new ServiceError('NETWORK_ERROR', 'Unable to reach the store. Please try again.');
+  }
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    throw new ServiceError('SERVER_ERROR', 'Unable to load products. Please try again.');
+  }
+  if (!response.ok) {
+    throw new ServiceError(data?.code || 'SERVER_ERROR', data?.message || 'Unable to load products. Please try again.');
+  }
+  return data;
+}
+
+/** Admin listing stays paired with mock create/update/delete until admin APIs exist. */
+export async function getMockProducts(filters = {}) {
   await delay();
   const { q = '', types = [], stones = [], materials = [], minPrice, maxPrice, inStock, customizable, sort } = filters;
   const min = minPrice === '' || minPrice == null ? null : Number(minPrice);
@@ -81,10 +117,7 @@ export async function getProducts(filters = {}) {
 }
 
 export async function getProductBySlug(slug) {
-  await delay();
-  const product = productsTable.all().find((p) => p.slug === slug);
-  if (!product) throw new ServiceError('NOT_FOUND', 'This product is no longer available.');
-  return clone(product);
+  return requestProducts(`/api/products/${encodeURIComponent(slug)}`);
 }
 
 export async function getProductsByIds(ids = []) {

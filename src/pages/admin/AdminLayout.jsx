@@ -2,8 +2,8 @@ import { Suspense, useEffect, useState } from 'react';
 import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Gem, Package, Users, UsersRound, ChartColumn, Settings, LogOut, Store, Menu, X } from 'lucide-react';
 import Logo from '../../components/layout/Logo';
-import { useAuth } from '../../context/AuthContext';
-import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/useAuth';
+import { useToast } from '../../context/useToast';
 import { DIAMOND_STYLES } from '../../utils/stoneTheme';
 import './Admin.css';
 
@@ -33,9 +33,13 @@ export default function AdminLayout() {
   }, [open]);
 
   async function handleLogout() {
-    await logout();
-    showToast('You have been logged out.', { type: 'info' });
-    navigate('/');
+    try {
+      await logout();
+      showToast('You have been logged out.', { type: 'info' });
+      navigate('/');
+    } catch (error) {
+      showToast(error.message, { type: 'error', duration: 8000 });
+    }
   }
 
   return (
