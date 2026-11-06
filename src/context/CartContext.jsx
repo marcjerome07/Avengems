@@ -4,6 +4,7 @@ import { stoneFromColor } from '../utils/stoneTheme';
 import { getCustomization } from '../utils/customization';
 import { useToast } from './useToast';
 import { CartContext } from './useCart';
+import useCartQuote from '../hooks/useCartQuote';
 const MAX_PER_LINE = 10;
 
 export function CartProvider({ children }) {
@@ -73,12 +74,15 @@ export function CartProvider({ children }) {
   );
 
   const clearCart = useCallback(() => setItems([]), []);
-
-  const totals = useMemo(() => cartService.calculateTotals(items), [items]);
+  const completeCheckout = useCallback((purchased) => setItems((previous) => cartService.subtractPurchasedItems(previous, purchased)), []);
+  const { quote, loading: quoteLoading, error: quoteError, reload: reloadQuote } = useCartQuote(items);
+  const itemCount = items.reduce((count, item) => count + item.quantity, 0);
+  const totals = quote?.totals ?? null;
+  const quotedItems = useMemo(() => quote?.items.map((item, index) => ({ ...item, lineId: items[index]?.lineId ?? item.lineId })) ?? null, [quote, items]);
 
   const value = useMemo(
-    () => ({ items, totals, itemCount: totals.itemCount, addItem, updateQuantity, removeItem, clearCart }),
-    [items, totals, addItem, updateQuantity, removeItem, clearCart],
+    () => ({ items, totals, quotedItems, quoteLoading, quoteError, reloadQuote, itemCount, addItem, updateQuantity, removeItem, clearCart, completeCheckout }),
+    [items, totals, quotedItems, quoteLoading, quoteError, reloadQuote, itemCount, addItem, updateQuantity, removeItem, clearCart, completeCheckout],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

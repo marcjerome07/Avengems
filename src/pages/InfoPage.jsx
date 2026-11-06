@@ -12,7 +12,7 @@ const PAGES = {
     title: 'Shipping',
     subtitle: 'How and when your pieces arrive.',
     sections: [
-      ['Rates', 'Flat ₱120 nationwide. Orders of ₱2,000 and above ship free.'],
+      ['Rates', 'Current shipping fees and free-shipping eligibility are calculated in your cart and checked again at checkout.'],
       [
         'Delivery times',
         'Metro Manila: 2–4 business days. Provincial areas: 4–7 business days. Customized pieces need 3–5 extra business days.',
@@ -47,12 +47,13 @@ const PAGES = {
     subtitle: 'What this prototype stores, and where.',
     sections: [
       [
-        'Your browser only',
-        "Your cart, wishlist, session, demo accounts you create, and demo orders are saved in your browser's local storage. Nothing is sent to a server.",
+        'Accounts and store records',
+        'Account credentials are managed by Supabase Auth. Profiles, saved addresses, wishlists and placed orders are stored on the server. Authentication uses protected cookies.',
       ],
-      ['Passwords', 'Passwords are never stored in plain text, even in this prototype.'],
+      ['Browser storage', 'Cart selections and pending checkout retry information may be stored in your browser. Browser storage does not grant administrator access.'],
+      ['Passwords', 'Passwords are sent securely to the authentication service during registration or login and are never saved in browser storage.'],
       ['Payment details', 'Card details are validated on the page and then discarded. They are never stored or sent anywhere.'],
-      ['Clearing your data', "Clear your browser's site data to remove everything this prototype saved."],
+      ['Clearing your data', 'Clearing browser data removes local selections and retry information. It does not delete your Supabase account or server records.'],
     ],
   },
 };

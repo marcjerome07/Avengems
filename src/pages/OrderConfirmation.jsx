@@ -6,6 +6,7 @@ import Button from '../components/ui/Button';
 import Skeleton from '../components/ui/Skeleton';
 import EmptyState from '../components/ui/EmptyState';
 import { StatusBadge } from '../components/ui/Badge';
+import OrderReference from '../components/account/OrderReference';
 import { TotalsList, MiniItems } from '../components/cart/OrderSummary';
 import { useAuth } from '../context/useAuth';
 import { getOrderById, PAYMENT_LABELS } from '../services/orderService';
@@ -17,16 +18,20 @@ export default function OrderConfirmation() {
   const { orderId } = useParams();
   const { user, isAdmin } = useAuth();
   const [state, setState] = useState({ status: 'loading' });
+  const [version, setVersion] = useState(0);
+  const scope = `${user?.id}:${orderId}:${version}`;
 
   useEffect(() => {
     let active = true;
     getOrderById(orderId, { userId: user?.id, isAdmin })
-      .then((order) => active && setState({ status: 'ready', order }))
-      .catch(() => active && setState({ status: 'missing' }));
+      .then((order) => active && setState({ status: 'ready', order, scope }))
+      .catch((error) => active && setState({ status: 'missing', error, scope }));
     return () => {
       active = false;
     };
-  }, [orderId, user?.id, isAdmin]);
+  }, [orderId, user?.id, isAdmin, scope, version]);
+
+  if (state.scope !== scope || state.status === 'loading') return <PageContainer title="Loading order"><div role="status" aria-label="Loading order"><Skeleton height={200} /></div></PageContainer>;
 
   if (state.status === 'missing') {
     return (
@@ -34,9 +39,10 @@ export default function OrderConfirmation() {
         <EmptyState
           headingLevel={1}
           icon={PackageSearch}
-          title="We couldn't find that order"
-          message="Check your order list for the latest status of your purchases."
+          title={state.error?.status === 404 ? "We couldn't find that order" : 'Unable to load your order'}
+          message={state.error?.message ?? 'Check My Orders for your saved order.'}
         >
+          <Button onClick={() => setVersion((value) => value + 1)}>Retry order</Button>
           <Button to="/account/orders">View My Orders</Button>
         </EmptyState>
       </PageContainer>
@@ -71,7 +77,7 @@ export default function OrderConfirmation() {
           <dl className="confirm__facts">
             <div>
               <dt>Order number</dt>
-              <dd className="confirm__number">{order.id}</dd>
+              <dd className="confirm__number"><OrderReference order={order} /></dd>
             </div>
             <div>
               <dt>Order date</dt>

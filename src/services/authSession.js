@@ -23,11 +23,26 @@ export function createAuthSession(service = authService) {
         if (version === generation) update({ user, status: user ? 'authenticated' : 'anonymous', error: null });
         return user;
       } catch (error) {
-        if (version === generation) update({ user: null, status: 'error', error });
+        if (version === generation) {
+          if (error?.code === 'SESSION_IDLE_EXPIRED') { expireIdle(); return null; }
+          const temporary = ![401, 403].includes(error?.status) && (
+            ['NETWORK_ERROR', 'SERVER_ERROR', 'AUTH_UNAVAILABLE', 'DATABASE_UNAVAILABLE'].includes(error?.code)
+            || error?.status === 429 || error?.status >= 500);
+          // Keep an already verified session eligible for the minute/focus retry.
+          // Route guards still withhold private content while error is present.
+          update(temporary && state.status === 'authenticated' && state.user
+            ? { ...state, error } : { user: null, status: 'error', error });
+        }
         return null;
       }
     })().finally(() => { restoring = undefined; });
     return restoring;
+  }
+  function expireIdle(unconfirmed = false) {
+    ++generation;
+    // Server checks its own deadline on every private request. Never call the
+    // general logout endpoint from an old tab's timer: another tab may be active.
+    update({ user: null, status: 'anonymous', error: null, idleExpired: true, expiryUnconfirmed: unconfirmed });
   }
   async function login(email, password, remember) {
     if (signingOut) throw new Error('Please wait for sign out to finish.');
@@ -66,7 +81,7 @@ export function createAuthSession(service = authService) {
   }
   return { getSnapshot: () => state,
     subscribe: (listener) => { listeners.add(listener); return () => listeners.delete(listener); },
-    restore, login, logout };
+    restore, login, logout, expireIdle };
 }
 
 export const authSession = createAuthSession();

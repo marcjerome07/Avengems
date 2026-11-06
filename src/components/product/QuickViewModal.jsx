@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ShoppingBag } from 'lucide-react';
+import { ArrowRight, ShoppingBag, Heart } from 'lucide-react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
@@ -8,6 +8,7 @@ import Rating from '../ui/Rating';
 import QuantitySelector from '../ui/QuantitySelector';
 import ProductMedia from './ProductMedia';
 import { useCart } from '../../context/useCart';
+import { useWishlist } from '../../context/useWishlist';
 import { formatPrice } from '../../utils/formatPrice';
 import { stoneVar } from '../../utils/stoneTheme';
 import './QuickViewModal.css';
@@ -15,6 +16,7 @@ import './QuickViewModal.css';
 export default function QuickViewModal({ product, open, onClose }) {
   const [quantity, setQuantity] = useState(1);
   const { addItem } = useCart();
+  const { isWishlisted, isPending, toggle, loading: wishlistLoading } = useWishlist();
   const outOfStock = product.stock <= 0;
 
   function handleAdd() {
@@ -58,6 +60,10 @@ export default function QuickViewModal({ product, open, onClose }) {
               {outOfStock ? 'Out of Stock' : 'Add to Cart'}
             </Button>
           </div>
+          <Button variant="ghost" icon={Heart} onClick={() => toggle(product)}
+            disabled={wishlistLoading || isPending(product.id)} aria-pressed={isWishlisted(product.id)}>
+            {isWishlisted(product.id) ? 'Remove from wishlist' : 'Save to wishlist'}
+          </Button>
           <Link to={`/product/${product.slug}`} className="text-link" onClick={onClose}>
             View full details <ArrowRight size={16} strokeWidth={1.5} />
           </Link>

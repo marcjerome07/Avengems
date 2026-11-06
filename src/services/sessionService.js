@@ -1,7 +1,18 @@
-import { ServiceError } from './mockDb';
+import { ServiceError } from './serviceError';
 
 let restoring;
 let refreshing;
+let reportingActivity;
+
+export function sessionTiming(value) {
+  if (!value || typeof value.key !== 'string' || !/^[A-Za-z0-9_-]{1,100}$/.test(value.key)
+    || !['idleExpiresAt', 'absoluteExpiresAt', 'serverNow'].every((key) => Number.isSafeInteger(value[key]))
+    || value.idleExpiresAt <= value.serverNow || value.idleExpiresAt > value.absoluteExpiresAt
+    || value.idleExpiresAt - value.serverNow > 20 * 60 * 1000) {
+    throw new ServiceError('INVALID_SESSION', 'Session timing could not be verified. Please retry.');
+  }
+  return Object.freeze({ key: value.key, idleExpiresAt: value.idleExpiresAt, absoluteExpiresAt: value.absoluteExpiresAt, serverNow: value.serverNow });
+}
 
 async function request(url, options = {}) {
   let response;
@@ -23,7 +34,7 @@ async function post(path, body, retry = true) {
   if (typeof csrfToken !== 'string' || !csrfToken) throw new ServiceError('SERVER_ERROR', 'Unable to secure your request. Please try again.');
   try {
     return await request(`/api/auth/${path}`, { method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken }, body: JSON.stringify(body ?? {}) });
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken }, body: JSON.stringify(typeof body === 'function' ? body() : body ?? {}) });
   } catch (error) {
     // CSRF is rejected before provider operations. Never retry network/provider failures.
     if (retry && error.code === 'CSRF_REJECTED') return post(path, body, false);
@@ -40,12 +51,13 @@ function verifiedUser(user) {
     throw new ServiceError('UNVERIFIED', 'Please confirm your email before signing in.', { email: user.email });
   }
   return Object.freeze({ id: user.id, name: user.name, email: user.email, role: user.role,
-    phone: user.phone ?? '', verified: true, createdAt: user.createdAt });
+    phone: user.phone ?? '', verified: true, createdAt: user.createdAt,
+    ...(user.session ? { session: sessionTiming(user.session) } : {}) });
 }
 
 export async function loginWithCookies(email, password, remember = false) {
   const result = await post('login', { email: email.trim(), password, remember });
-  try { return verifiedUser(result.user); }
+  try { return verifiedUser({ ...result.user, ...(result.session ? { session: result.session } : {}) }); }
   catch (error) {
     try { await logoutWithCookies(); } catch { /* Never grant access when cleanup cannot be confirmed. */ }
     throw error;
@@ -53,6 +65,7 @@ export async function loginWithCookies(email, password, remember = false) {
 }
 
 export async function logoutWithCookies() {
+  await Promise.allSettled([refreshing, reportingActivity].filter(Boolean));
   try { await post('logout'); }
   catch (error) {
     // A protected 401 clears cookies server-side: the session is already gone.
@@ -70,14 +83,37 @@ export function refreshCookieSession() {
 export function restoreCookieSession() {
   if (!restoring) restoring = (async () => {
     try { return verifiedUser(await request('/api/me')); }
-    catch (error) { if (error.status !== 401) throw error; }
+    catch (error) { if (error.code === 'SESSION_IDLE_EXPIRED' || error.status !== 401) throw error; }
     try {
       await refreshCookieSession();
       return verifiedUser(await request('/api/me'));
     } catch (error) {
-      if (error.status === 401) return null;
+      if (error.code === 'SESSION_IDLE_EXPIRED') throw error;
+      if (error.status === 401 && ['/api/auth/refresh', '/api/me'].includes(error.endpoint)) return null;
+      if (error.status === 401 && error.endpoint === '/api/auth/csrf') {
+        throw new ServiceError('AUTH_UNAVAILABLE', 'Unable to secure the session check. Please retry.', { status: 503 });
+      }
       throw error;
     }
   })().finally(() => { restoring = undefined; });
   return restoring;
 }
+
+export function recordSessionActivity(elapsedMs = 0) {
+  const started = Date.now();
+  const body = () => {
+    const age = Math.max(0, Math.floor(elapsedMs + Date.now() - started));
+    if (age > 30000) throw new ServiceError('ACTIVITY_STALE', 'This activity report is no longer current.');
+    return age ? { elapsedMs: age } : {};
+  };
+  if (!reportingActivity) reportingActivity = (async () => {
+    try { return sessionTiming((await post('activity', body)).session); }
+    catch (error) {
+      if (error.code === 'SESSION_IDLE_EXPIRED' || error.status !== 401 || error.endpoint !== '/api/auth/activity') throw error;
+      await refreshCookieSession();
+      return sessionTiming((await post('activity', body)).session);
+    }
+  })().finally(() => { reportingActivity = undefined; });
+  return reportingActivity;
+}
+export async function checkIdleSession() { return sessionTiming((await post('idle')).session); }

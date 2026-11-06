@@ -1,9 +1,6 @@
-// MOCK SERVICE — replace the body of these functions with real API calls when the backend is ready.
-//
-// Suggested endpoint: GET /api/team
+// Static academic project-team information; these labels do not grant application access.
 
 import { team } from '../data/team';
-import { delay, clone } from './mockDb';
 
 export const TEAM_ROLES = ['Team Leader', 'Scrum Master', 'Member', 'Administrator'];
 
@@ -16,6 +13,5 @@ export function memberInitials(m) {
 }
 
 export async function getTeamMembers() {
-  await delay(250, 500);
-  return clone(team);
+  return structuredClone(team);
 }

@@ -17,6 +17,7 @@ export function createRequireAuth(verifyAccessToken, { cookieSessions } = {}) {
       if (headerCount) {
         if (headerCount !== 1 || !match) throw unauthorized();
         token = match[1];
+        if (req.appSession) token = cookieSessions.accessToken(req, res, token);
       } else {
         usingCookies = true;
         token = cookieSessions?.accessToken(req, res);
@@ -31,9 +32,9 @@ export function createRequireAuth(verifyAccessToken, { cookieSessions } = {}) {
         emailConfirmedAt: user.email_confirmed_at ?? null,
       });
     } catch (error) {
-      const safeError = error instanceof ApiError && ['UNAUTHORIZED', 'AUTH_UNAVAILABLE'].includes(error.code)
+      const safeError = error instanceof ApiError && ['UNAUTHORIZED', 'AUTH_UNAVAILABLE', 'SESSION_IDLE_EXPIRED'].includes(error.code)
         ? error : authUnavailable();
-      if (usingCookies && safeError.status === 401) cookieSessions?.clearAccess(res);
+      if (usingCookies && safeError.status === 401) cookieSessions?.clearAccess(res, req);
       if (safeError.status === 401) res.set('WWW-Authenticate', 'Bearer realm="avengems"');
       return next(safeError);
     }

@@ -13,7 +13,7 @@ export default function Orders() {
   useDocumentTitle('My Orders');
   const { user } = useAuth();
   const [status, setStatus] = useState('All');
-  const { data, loading } = useServiceData(() => getOrdersByUser(user.id), [user.id]);
+  const { data, loading, error, reload } = useServiceData(() => getOrdersByUser(user.id), [user.id]);
   const orders = data ?? [];
   const filtered = status === 'All' ? orders : orders.filter((o) => o.status === status);
   const countFor = (s) => (s === 'All' ? orders.length : orders.filter((o) => o.status === s).length);
@@ -39,7 +39,7 @@ export default function Orders() {
         ))}
       </div>
 
-      {loading ? (
+      {error ? <div role="alert"><p>{error.message}</p><Button onClick={reload}>Retry orders</Button></div> : loading ? (
         <TableSkeleton rows={5} cols={5} />
       ) : filtered.length ? (
         <OrdersTable orders={filtered} />

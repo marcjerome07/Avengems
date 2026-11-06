@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Pencil, Trash2, Search, PackageX } from 'lucide-react';
 import AdminHeader from '../../components/admin/AdminHeader';
+import AdminDataState from '../../components/admin/AdminDataState';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
@@ -13,8 +14,9 @@ import ProductMedia from '../../components/product/ProductMedia';
 import { useToast } from '../../context/useToast';
 import useServiceData from '../../hooks/useServiceData';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
+import { productUpdatePayload } from '../../services/adminService';
 import {
-  getMockProducts as getProducts,
+  getAdminProducts as getProducts,
   getCollections,
   getSizePreset,
   createProduct,
@@ -39,6 +41,7 @@ const BLANK = {
   customColor: false,
   customizationFee: '150',
   isFeatured: false,
+  archived: false,
 };
 
 function toForm(p) {
@@ -49,7 +52,7 @@ function toForm(p) {
     stock: String(p.stock),
     customSize: p.customizable.size,
     customColor: p.customizable.color,
-    customizationFee: String(p.customizationFee || 150),
+    customizationFee: String(p.customizationFee ?? 150),
   };
 }
 
@@ -74,13 +77,10 @@ function ProductForm({ initial, collections, onCancel, onSave, saving }) {
     });
     setErrors(result);
     if (Object.keys(result).length) return;
-    const theme = stoneTheme(v.stone);
     onSave({
       name: v.name.trim(),
       type: v.type,
       stone: v.stone,
-      color: theme.color,
-      gemstone: gemstoneFor(v.stone),
       material: v.material,
       price: Number(v.price),
       stock: Number(v.stock),
@@ -89,7 +89,8 @@ function ProductForm({ initial, collections, onCancel, onSave, saving }) {
       customizable: { size: v.customSize, color: v.customColor },
       customizationFee: customizable ? Number(v.customizationFee) : 0,
       isFeatured: v.isFeatured,
-      ...getSizePreset(v.type),
+      archived: v.archived,
+      ...(v.id && v.type === initial.type ? { sizes: v.sizes, defaultSize: v.defaultSize } : getSizePreset(v.type)),
     });
   }
 
@@ -172,6 +173,7 @@ function ProductForm({ initial, collections, onCancel, onSave, saving }) {
         <label className="checkbox">
           <input type="checkbox" checked={v.isFeatured} onChange={(e) => set('isFeatured', e.target.checked)} /> Featured on home page
         </label>
+        <label className="checkbox"><input type="checkbox" checked={v.archived} onChange={(e) => set('archived', e.target.checked)} /> Archived (hidden from customers)</label>
       </fieldset>
       <div className="span-2" style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
         <Button variant="ghost" onClick={onCancel}>
@@ -188,8 +190,8 @@ function ProductForm({ initial, collections, onCancel, onSave, saving }) {
 export default function Products() {
   useDocumentTitle('Admin · Products');
   const { showToast } = useToast();
-  const { data, loading, reload } = useServiceData(() => getProducts({ sort: 'featured' }).then((r) => r.items));
-  const { data: collections } = useServiceData(getCollections);
+  const { data, loading, error, reload } = useServiceData(() => getProducts().then((r) => r.items));
+  const { data: collections, error: collectionError, reload: reloadCollections } = useServiceData(getCollections);
   const [query, setQuery] = useState('');
   const [type, setType] = useState('');
   const [stone, setStone] = useState('');
@@ -210,13 +212,16 @@ export default function Products() {
   async function handleSave(payload) {
     setBusy(true);
     try {
-      if (editing.id) await updateProduct(editing.id, payload);
+      if (editing.id) {
+        await updateProduct(editing.id, productUpdatePayload(editing, payload));
+      }
       else await createProduct(payload);
       showToast(editing.id ? 'Product updated.' : 'Product added to the catalog.', { type: 'success' });
       setEditing(null);
       reload();
     } catch (err) {
       showToast(err.message, { type: 'error' });
+      if (err.code === 'INVENTORY_CONFLICT') { setEditing(null); reload(); }
     } finally {
       setBusy(false);
     }
@@ -226,7 +231,7 @@ export default function Products() {
     setBusy(true);
     try {
       await deleteProduct(deleting.id);
-      showToast(`${deleting.name} deleted.`, { type: 'success' });
+      showToast(`${deleting.name} archived.`, { type: 'success' });
       setDeleting(null);
       reload();
     } catch (err) {
@@ -239,7 +244,7 @@ export default function Products() {
   return (
     <>
       <AdminHeader title="Products" subtitle={`${data?.length ?? '–'} pieces in the catalog`}>
-        <Button icon={Plus} onClick={() => setEditing(BLANK)}>
+        <Button icon={Plus} disabled={loading || busy || Boolean(error) || !collections?.length} onClick={() => setEditing(BLANK)}>
           Add product
         </Button>
       </AdminHeader>
@@ -266,9 +271,10 @@ export default function Products() {
           options={[{ value: '', label: 'All stones' }, ...STONE_ORDER.map((s) => ({ value: s, label: stoneTheme(s).color }))]}
         />
       </div>
-      <p className="admin-note">Prototype: changes apply to the mock catalog until the page is reloaded.</p>
+      <p className="admin-note">Changes persist in the catalog. Stock conflicts require reloading; archiving preserves order history.</p>
+      <AdminDataState error={collectionError} onRetry={reloadCollections} />
 
-      {loading ? (
+      {error ? <AdminDataState error={error} onRetry={reload} /> : loading ? (
         <TableSkeleton rows={8} cols={6} />
       ) : rows.length ? (
         <div className="table-wrap">
@@ -324,19 +330,21 @@ export default function Products() {
                   <td data-label="Options">
                     <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                       {p.isFeatured && <Badge variant="bronze">Featured</Badge>}
+                      {p.archived && <Badge variant="neutral">Archived</Badge>}
                       {(p.customizable.size || p.customizable.color) && <Badge variant="neutral">Custom</Badge>}
                     </span>
                   </td>
                   <td data-label="Actions" className="num">
                     <span className="cell-actions">
-                      <button type="button" className="icon-btn" onClick={() => setEditing(toForm(p))} aria-label={`Edit ${p.name}`}>
+                      <button type="button" className="icon-btn" disabled={busy || !collections?.length} onClick={() => setEditing(toForm(p))} aria-label={`Edit ${p.name}`}>
                         <Pencil size={16} strokeWidth={1.5} />
                       </button>
                       <button
                         type="button"
                         className="icon-btn icon-btn--danger"
                         onClick={() => setDeleting(p)}
-                        aria-label={`Delete ${p.name}`}
+                        aria-label={`Archive ${p.name}`}
+                        disabled={busy || p.archived}
                       >
                         <Trash2 size={16} strokeWidth={1.5} />
                       </button>
@@ -366,7 +374,7 @@ export default function Products() {
       <Modal
         open={Boolean(deleting)}
         onClose={() => setDeleting(null)}
-        title="Delete product?"
+        title="Archive product?"
         size="sm"
         footer={
           <>
@@ -374,13 +382,13 @@ export default function Products() {
               Cancel
             </Button>
             <Button variant="danger" loading={busy} onClick={handleDelete}>
-              Delete
+              Archive
             </Button>
           </>
         }
       >
         <p className="muted">
-          <strong>{deleting?.name}</strong> will be removed from the catalog for this session.
+          <strong>{deleting?.name}</strong> will be hidden from the customer catalog. Historical orders are preserved.
         </p>
       </Modal>
     </>

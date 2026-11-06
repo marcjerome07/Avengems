@@ -15,8 +15,8 @@ const IN_PROGRESS = ['Pending', 'Processing', 'Shipped'];
 
 export default function Overview() {
   const { user } = useAuth();
-  const { count: wishlistCount } = useWishlist();
-  const { data: orders, loading } = useServiceData(() => getOrdersByUser(user.id), [user.id]);
+  const { count: wishlistCount, loading: wishlistLoading, error: wishlistError } = useWishlist();
+  const { data: orders, loading, error, reload } = useServiceData(() => getOrdersByUser(user.id), [user.id]);
 
   const list = orders ?? [];
   const pending = list.filter((o) => IN_PROGRESS.includes(o.status)).length;
@@ -43,7 +43,7 @@ export default function Overview() {
           accent={STONE_THEME.mind.base}
         />
         <StatCard label="Completed Orders" value={loading ? '–' : completed} icon={CircleCheck} accent={STONE_THEME.time.base} />
-        <StatCard label="Wishlist Items" value={wishlistCount} icon={Heart} accent={STONE_THEME.reality.base} />
+        <StatCard label="Wishlist Items" value={wishlistLoading || wishlistError ? '—' : wishlistCount} icon={Heart} accent={STONE_THEME.reality.base} />
       </div>
 
       <section className="panel" aria-labelledby="recent-title">
@@ -57,7 +57,7 @@ export default function Overview() {
             </Link>
           )}
         </div>
-        {loading ? (
+        {error ? <div role="alert"><p>{error.message}</p><Button onClick={reload}>Retry orders</Button></div> : loading ? (
           <TableSkeleton rows={4} cols={5} />
         ) : list.length ? (
           <OrdersTable orders={list.slice(0, 5)} />

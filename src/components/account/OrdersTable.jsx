@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom';
+import OrderReference from './OrderReference';
+import { orderReference } from '../../utils/orderReference';
 import { StatusBadge } from '../ui/Badge';
 import { formatDate, formatPrice } from '../../utils/formatPrice';
 
@@ -27,7 +29,7 @@ export default function OrdersTable({ orders }) {
             return (
               <tr key={o.id}>
                 <td data-label="Order" className="strong">
-                  {o.id}
+                  <OrderReference order={o} />
                 </td>
                 <td data-label="Date">{formatDate(o.createdAt)}</td>
                 <td data-label="Items">
@@ -40,7 +42,7 @@ export default function OrdersTable({ orders }) {
                   <StatusBadge status={o.status} />
                 </td>
                 <td data-label="" className="num">
-                  <Link to={`/account/orders/${o.id}`} className="text-link" aria-label={`View order ${o.id}`}>
+                  <Link to={`/account/orders/${encodeURIComponent(o.id)}`} className="text-link" aria-label={`View order ${orderReference(o)}`}>
                     View Order
                   </Link>
                 </td>

@@ -7,14 +7,14 @@ import EmptyState from '../components/ui/EmptyState';
 import QuantitySelector from '../components/ui/QuantitySelector';
 import ProductMedia from '../components/product/ProductMedia';
 import ProductGrid from '../components/product/ProductGrid';
-import { TotalsList } from '../components/cart/OrderSummary';
+import { QuoteTotals } from '../components/cart/OrderSummary';
 import { useCart } from '../context/useCart';
 import { getSuggestedProducts } from '../services/productService';
 import { formatPrice } from '../utils/formatPrice';
 import { stoneVar } from '../utils/stoneTheme';
 import './Cart.css';
 
-function CartLine({ item, onQuantity, onRemove }) {
+function CartLine({ item, onQuantity, onRemove, priced }) {
   return (
     <li className="cart-line">
       <Link to={`/product/${item.slug}`} className="cart-line__media" tabIndex={-1} aria-hidden="true">
@@ -37,10 +37,10 @@ function CartLine({ item, onQuantity, onRemove }) {
           </div>
           <div>
             <dt>Customization</dt>
-            <dd>{item.customized ? `Yes (+${formatPrice(item.customizationFee)})` : 'No'}</dd>
+            <dd>{priced ? (item.customized ? `Yes (+${formatPrice(item.customizationFee)})` : 'No') : 'Awaiting validation'}</dd>
           </div>
         </dl>
-        <p className="cart-line__unit">{formatPrice(item.unitPrice)} each</p>
+        <p className="cart-line__unit">{priced ? `${formatPrice(item.unitPrice)} each` : 'Awaiting server price'}</p>
       </div>
       <div className="cart-line__controls">
         <QuantitySelector
@@ -50,7 +50,7 @@ function CartLine({ item, onQuantity, onRemove }) {
           onChange={(q) => onQuantity(item.lineId, q)}
           label={`Quantity for ${item.name}`}
         />
-        <p className="cart-line__total">{formatPrice(item.unitPrice * item.quantity)}</p>
+        <p className="cart-line__total">{priced ? formatPrice(item.unitPrice * item.quantity) : '—'}</p>
         <button
           type="button"
           className="cart-line__remove"
@@ -65,14 +65,16 @@ function CartLine({ item, onQuantity, onRemove }) {
 }
 
 export default function Cart() {
-  const { items, totals, updateQuantity, removeItem } = useCart();
+  const { items, totals, quotedItems, quoteLoading, quoteError, reloadQuote, itemCount, updateQuantity, removeItem } = useCart();
+  const ready = Boolean(totals) && !quoteLoading && !quoteError;
   const [suggestions, setSuggestions] = useState(null);
   const stonesInCart = useMemo(() => [...new Set(items.map((i) => i.stone))].sort().join(','), [items]);
 
   useEffect(() => {
     if (!stonesInCart) return undefined;
     let active = true;
-    getSuggestedProducts(stonesInCart.split(','), 4).then((list) => active && setSuggestions(list));
+    getSuggestedProducts(stonesInCart.split(','), 4).then((list) => active && setSuggestions(list))
+      .catch(() => active && setSuggestions([]));
     return () => {
       active = false;
     };
@@ -97,12 +99,12 @@ export default function Cart() {
 
   return (
     <PageContainer title="Your Cart">
-      <PageHeader title="Your Cart" subtitle={`${totals.itemCount} ${totals.itemCount === 1 ? 'piece' : 'pieces'} in your collection`} />
+      <PageHeader title="Your Cart" subtitle={`${itemCount} ${itemCount === 1 ? 'piece' : 'pieces'} in your collection`} />
 
       <div className="cart-layout">
         <ul className="cart-lines" role="list" aria-label="Cart items">
-          {items.map((item) => (
-            <CartLine key={item.lineId} item={item} onQuantity={updateQuantity} onRemove={removeItem} />
+          {(quotedItems ?? items).map((item) => (
+            <CartLine key={item.lineId} item={item} priced={ready} onQuantity={updateQuantity} onRemove={removeItem} />
           ))}
         </ul>
 
@@ -110,8 +112,8 @@ export default function Cart() {
           <h2 id="summary-title" className="summary-card__title">
             Order summary
           </h2>
-          <TotalsList totals={totals} showFreeShippingHint />
-          <Button to="/checkout" size="lg" fullWidth icon={Lock}>
+          <QuoteTotals totals={totals} loading={quoteLoading} error={quoteError} onRetry={reloadQuote} showFreeShippingHint />
+          <Button to="/checkout" disabled={!ready} size="lg" fullWidth icon={Lock}>
             Proceed to Checkout
           </Button>
           <Button to="/shop" variant="ghost" fullWidth>

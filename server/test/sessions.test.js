@@ -7,6 +7,8 @@ import { createAuthRouter } from '../src/routes/auth.js';
 import { createMeRouter } from '../src/routes/me.js';
 import { getPublicUser, identityFromUser } from '../src/profile.js';
 import { errorHandler } from '../src/errors.js';
+import { createRequireAuth } from '../src/middleware/auth.js';
+import { createRequireAdmin } from '../src/middleware/admin.js';
 
 const user = { id: '11111111-1111-4111-8111-111111111111', email: 'customer@example.test',
   email_confirmed_at: '2026-01-01T00:00:00Z', user_metadata: { role: 'admin' } };
@@ -21,7 +23,7 @@ async function withApi(run, options = {}) {
   function makeSession() {
     sequence += 1;
     const session = { access_token: `fabricated-access-${sequence}`, refresh_token: `fabricated-refresh-${sequence}`,
-      expires_at: time / 1000 + 3600 };
+      expires_at: time / 1000 + (options.accessLifetimeSeconds ?? 3600) };
     tokens.set(session.access_token, session.expires_at);
     return { data: { user, session }, error: null };
   }
@@ -46,6 +48,13 @@ async function withApi(run, options = {}) {
       },
       getUser: async (token) => {
         const expiry = tokens.get(token);
+        if (options.nextUserBarrier) {
+          const barrier = options.nextUserBarrier; options.nextUserBarrier = undefined;
+          options.nextUserStarted?.resolve(); await barrier.promise;
+        }
+        if (expiry && expiry * 1000 <= time && options.expiredLookupBarrier) {
+          options.expiredLookupStarted?.resolve(); await options.expiredLookupBarrier.promise;
+        }
         if (!expiry || expiry * 1000 <= time) return { data: { user: null }, error: { status: 401 } };
         return { data: { user }, error: null };
       },
@@ -76,6 +85,9 @@ async function withApi(run, options = {}) {
   app.use(['/api/auth', '/api/me'], (req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
   app.use(express.json());
   app.use('/api/auth', createAuthRouter(sessions));
+  if (options.enforceAppSession) app.use('/api/me', sessions.requireSession);
+  app.use('/api/admin', sessions.requireSession, createRequireAuth(createAccessTokenVerifier(config), { cookieSessions: sessions }), createRequireAdmin(db));
+  app.get('/api/admin/probe', (_req, res) => res.json({ ok: true }));
   app.use('/api/me', createMeRouter({ client: db, verifyAccessToken: createAccessTokenVerifier(config), cookieSessions: sessions }));
   app.use(errorHandler);
   const server = app.listen(0, '127.0.0.1');
@@ -210,7 +222,7 @@ test('missing sessions return 401; expired access can explicitly refresh without
     await send('/api/auth/csrf');
     assert.equal((await send('/api/auth/refresh', { method: 'POST' })).status, 401);
     await login();
-    advance(3601 * 1000);
+    advance(61 * 1000);
     assert.equal((await send('/api/me')).status, 401);
     assert.ok(jar.has('avg_refresh'));
     const result = await send('/api/auth/refresh', { method: 'POST' });
@@ -218,7 +230,45 @@ test('missing sessions return 401; expired access can explicitly refresh without
     assert.equal(result.body.user.id, user.id);
     assert.equal(calls.refresh.length, 1);
     assert.equal((await send('/api/me')).status, 200);
-  });
+  }, { accessLifetimeSeconds: 60 });
+});
+
+test('customer/admin sessions securely renew after five idle minutes and expired access cookies', async () => {
+  for (const role of ['customer', 'admin']) for (const remember of [false, true]) {
+    await withApi(async ({ send, login, advance, jar, calls }) => {
+      assert.equal((await login({ email: user.email, password: 'fabricated-password', remember })).status, 200);
+      const sid = jar.get('avg_session');
+      advance(5 * 60 * 1000); // Access TTL is 60s; no heartbeat/requests during idle.
+      if (remember) jar.delete('avg_access'); // Browser expires persistent access cookie.
+      assert.equal((await send('/api/me')).status, 401);
+      assert.equal(jar.get('avg_session'), sid); assert.ok(jar.has('avg_refresh'));
+      assert.equal((await send('/api/auth/refresh', { method: 'POST', origin: false })).status, 403);
+      const refreshed = await send('/api/auth/refresh', { method: 'POST' });
+      assert.equal(refreshed.status, 200); assert.equal(refreshed.body.user.role, role);
+      assert.ok(refreshed.setCookies.every((cookie) => /HttpOnly/.test(cookie) && /SameSite=Strict/.test(cookie)));
+      if (remember) assert.match(refreshed.setCookies.find((cookie) => cookie.startsWith('avg_session=')), /Max-Age=2591700;/);
+      else assert.ok(refreshed.setCookies.every((cookie) => !/Max-Age=/.test(cookie)));
+      assert.equal(calls.refresh.length, 1);
+      assert.equal((await send('/api/me')).body.role, role);
+    }, { role, accessLifetimeSeconds: 60 });
+  }
+});
+
+test('transient idle refresh failure preserves cookies for retry and never extends the absolute deadline', async () => {
+  await withApi(async ({ send, login, advance, jar, options }) => {
+    await login({ email: user.email, password: 'fabricated-password', remember: true });
+    const sid = jar.get('avg_session'), refresh = jar.get('avg_refresh');
+    advance(5 * 60 * 1000); jar.delete('avg_access');
+    options.refreshThrows = true;
+    const failed = await send('/api/auth/refresh', { method: 'POST' }); assert.equal(failed.status, 503);
+    assert.equal(jar.get('avg_session'), sid); assert.equal(jar.get('avg_refresh'), refresh);
+    options.refreshThrows = false;
+    assert.equal((await send('/api/auth/refresh', { method: 'POST' })).status, 200);
+    assert.equal((await send('/api/me')).status, 200);
+    advance(30 * 24 * 60 * 60 * 1000 - 5 * 60 * 1000 + 1);
+    assert.equal((await send('/api/me')).status, 401);
+    assert.equal(jar.size, 0);
+  }, { role: 'admin', accessLifetimeSeconds: 60 });
 });
 
 test('concurrent refreshes rotate only once; stale parallel cookies converge within a short grace window', async () => {
@@ -242,6 +292,19 @@ test('concurrent refreshes rotate only once; stale parallel cookies converge wit
     assert.equal((await send('/api/auth/refresh', { method: 'POST', cookies: stale })).status, 401);
     assert.equal((await send('/api/me', { cookies: retryJar })).status, 200);
   }, { refreshStarted: started, refreshBarrier: barrier });
+});
+
+test('a delayed expired-access response cannot clear a newer rotated access cookie', async () => {
+  const started = deferred(), barrier = deferred();
+  await withApi(async ({ login, send, jar, advance }) => {
+    await login(); advance(61 * 1000);
+    const delayed = send('/api/me'); await started.promise;
+    assert.equal((await send('/api/auth/refresh', { method: 'POST' })).status, 200);
+    const fresh = jar.get('avg_access'); barrier.resolve();
+    assert.equal((await delayed).status, 401);
+    assert.equal(jar.get('avg_access'), fresh, 'Stale response must not delete the new cookie');
+    assert.equal((await send('/api/me')).status, 200);
+  }, { accessLifetimeSeconds: 60, expiredLookupStarted: started, expiredLookupBarrier: barrier });
 });
 
 test('invalid/revoked refresh credentials clear cookies and reject subsequent session reads', async () => {
@@ -359,13 +422,99 @@ test('expired CSRF protection requires a fresh bootstrap; production Origin must
   await withApi(async ({ login, send, advance, jar }) => {
     await login({ email: user.email, password: 'fabricated', remember: true });
     const previous = jar.get('avg_csrf');
-    advance(24 * 60 * 60 * 1000 + 1);
+    for (let i = 0; i < 95; i++) {
+      advance(15 * 60 * 1000);
+      assert.equal((await send('/api/auth/activity', { method: 'POST', body: {} })).status, 200);
+    }
+    advance(15 * 60 * 1000 + 1);
     assert.equal((await send('/api/auth/refresh', { method: 'POST' })).status, 403);
     assert.equal((await send('/api/auth/csrf')).status, 200);
     assert.notEqual(jar.get('avg_csrf'), previous);
     assert.equal((await send('/api/auth/refresh', { method: 'POST' })).status, 200);
-  });
+  }, { accessLifetimeSeconds: 48 * 60 * 60 });
   await withApi(async ({ send }) => {
     assert.equal((await send('/api/auth/csrf')).status, 503);
   }, { production: true, origin: 'http://localhost:5173' });
+});
+
+test('20-minute inactivity rejects customer/admin cookies and Bearer bypasses; polling and rotation never extend it', async () => {
+  for (const role of ['customer', 'admin']) for (const remember of [false, true]) await withApi(async ({ login, send, advance, jar }) => {
+    const logged = await login({ email: user.email, password: 'fabricated', remember });
+    const deadline = logged.body.session.idleExpiresAt;
+    const token = jar.get('avg_access');
+    advance(19 * 60 * 1000);
+    assert.equal((await send('/api/me')).body.session.idleExpiresAt, deadline);
+    assert.equal((await send('/api/auth/refresh', { method: 'POST' })).body.session.idleExpiresAt, deadline);
+    assert.equal((await send('/api/auth/idle', { method: 'POST', body: {} })).body.session.idleExpiresAt, deadline);
+    assert.equal((await send('/api/admin/probe')).status, role === 'admin' ? 200 : 403);
+    const stale = new Map(jar);
+    advance(60 * 1000);
+    const expired = await send('/api/me'); assert.equal(expired.status, 401); assert.equal(expired.body.code, 'SESSION_IDLE_EXPIRED');
+    assert.equal(jar.size, 0);
+    assert.equal((await send('/api/me', { cookies: stale, headers: { Authorization: `Bearer ${token}` } })).status, 401);
+    assert.equal((await send('/api/admin/probe', { cookies: stale })).status, 401);
+    assert.equal((await send('/api/me', { cookies: null, headers: { Authorization: `Bearer ${token}` } })).status, 401);
+  }, { role, enforceAppSession: true });
+});
+
+test('only protected verified activity moves the shared server deadline; invalid requests and 503 do not', async () => {
+  for (const role of ['customer', 'admin']) await withApi(async ({ login, send, advance, options }) => {
+    const logged = await login(); const first = logged.body.session;
+    advance(19 * 60 * 1000);
+    for (const request of [{ origin: false }, { csrf: false }, { body: { idleExpiresAt: Number.MAX_SAFE_INTEGER } },
+      { body: { elapsedMs: -1 } }, { body: { elapsedMs: 30001 } }])
+      assert.ok([400, 403].includes((await send('/api/auth/activity', { method: 'POST', body: {}, ...request })).status));
+    options.profileError = { message: 'private outage' };
+    assert.equal((await send('/api/auth/activity', { method: 'POST', body: {} })).status, 503);
+    options.profileError = null;
+    assert.equal((await send('/api/auth/idle', { method: 'POST' })).body.session.idleExpiresAt, first.idleExpiresAt);
+    const active = await send('/api/auth/activity', { method: 'POST', body: {} }); assert.equal(active.status, 200);
+    assert.equal(active.body.session.idleExpiresAt, first.idleExpiresAt + 19 * 60 * 1000);
+    assert.equal(active.body.session.absoluteExpiresAt, first.absoluteExpiresAt);
+    advance(19 * 60 * 1000); assert.equal((await send('/api/me')).status, 200);
+    advance(60 * 1000); assert.equal((await send('/api/me')).status, 401);
+  }, { role, enforceAppSession: true });
+});
+
+test('a pending refresh cannot resurrect a session crossing its idle deadline', async () => {
+  const started = deferred(), barrier = deferred();
+  await withApi(async ({ login, send, advance, jar }) => {
+    await login(); advance(19 * 60 * 1000);
+    const pending = send('/api/auth/refresh', { method: 'POST' }); await started.promise;
+    advance(60 * 1000); assert.equal((await send('/api/me')).status, 401);
+    barrier.resolve(); assert.equal((await pending).status, 401); assert.equal(jar.size, 0);
+  }, { refreshStarted: started, refreshBarrier: barrier });
+});
+
+test('explicit Bearer tokens are bound to the active application record on production private routes', async () => {
+  await withApi(async ({ login, send, jar }) => {
+    await login(); const token = jar.get('avg_access');
+    assert.equal((await send('/api/me', { headers: { Authorization: `Bearer ${token}` } })).status, 200);
+    assert.equal((await send('/api/me', { headers: { Authorization: 'Bearer another-token' } })).status, 401);
+    assert.equal((await send('/api/me', { cookies: null, headers: { Authorization: `Bearer ${token}` } })).status, 401);
+    assert.equal((await send('/api/me')).status, 200);
+  }, { enforceAppSession: true });
+});
+
+test('coalesced activity age uses the real past event time and cannot accept a future client deadline', async () => {
+  await withApi(async ({ login, send, advance }) => {
+    const logged = await login(); advance(19 * 60 * 1000);
+    const activity = await send('/api/auth/activity', { method: 'POST', body: { elapsedMs: 15000 } });
+    assert.equal(activity.body.session.idleExpiresAt, logged.body.session.idleExpiresAt + 19 * 60 * 1000 - 15000);
+    advance(20 * 60 * 1000 - 15001); assert.equal((await send('/api/me')).status, 200);
+    advance(1); assert.equal((await send('/api/me')).status, 401);
+  });
+});
+
+test('overlapping activity reports cannot move the server deadline backwards', async () => {
+  const started = deferred(), barrier = deferred();
+  await withApi(async ({ login, send, advance, options }) => {
+    await login(); advance(10 * 60 * 1000);
+    options.nextUserStarted = started; options.nextUserBarrier = barrier;
+    const older = send('/api/auth/activity', { method: 'POST', body: {} }); await started.promise;
+    advance(60 * 1000);
+    const newer = await send('/api/auth/activity', { method: 'POST', body: {} });
+    barrier.resolve(); const late = await older;
+    assert.equal(late.status, 200); assert.equal(late.body.session.idleExpiresAt, newer.body.session.idleExpiresAt);
+  });
 });

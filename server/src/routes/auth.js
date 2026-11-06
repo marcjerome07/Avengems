@@ -36,6 +36,8 @@ export function createAuthRouter(cookieSessions, registration, recovery) {
     res.json(await cookieSessions.login(req, res));
   });
   router.post('/refresh', cookieSessions.protect, async (req, res) => res.json(await cookieSessions.refresh(req, res)));
+  router.post('/activity', cookieSessions.protect, async (req, res) => res.json(await cookieSessions.activity(req, res)));
+  router.post('/idle', cookieSessions.protect, (req, res) => res.json(cookieSessions.checkIdle(req, res)));
   router.post('/logout', cookieSessions.protect, async (req, res) => res.json(await cookieSessions.logout(req, res)));
   // Contain unexpected errors locally so raw SDK/request errors never reach logging.
   router.use((error, req, res, next) => {

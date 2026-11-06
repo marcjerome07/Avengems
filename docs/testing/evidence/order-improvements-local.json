@@ -1,0 +1,231 @@
+{
+  "startedAt": "2026-11-06T21:50:13.342Z",
+  "environment": "disposable native loopback PostgreSQL",
+  "database": "avengems_orders_stage",
+  "dataDirectory": "C:\\Users\\User\\AppData\\Local\\Temp\\avengems-pg-stage-w19jTG\\data",
+  "sharedSupabaseContacted": false,
+  "modelLimitations": [
+    "Minimal disposable auth.users FK/trigger fixture, not Supabase Auth",
+    "Local roles/grants model; actual Supabase grants, PostgREST and HTTP/email flows remain unverified"
+  ],
+  "artifacts": {
+    "checkout-orders.sql": "13F0BF3381B2A5CCA3FE450FF7CEE5FCA1E78539AC49E27E24494685862A09B5",
+    "admin-order-cancel.sql": "3D35DD62DCA2A83DF8886A6B2F8E40E48844A70C821BEB2F039610B260D553A7",
+    "customer-order-cancel.sql": "342C1B5956183D2FAF07EDD4652D54C79968E4691937CBE0B4379A7FEBD1BF4A",
+    "order-display-references.sql": "1570D41DC0A8203176A9F8BA45B2BCC9403E65E2F0285C51EBD4C5FC6943F1C6"
+  },
+  "tests": [
+    {
+      "name": "preflight SQL executes against baseline and conflict query is empty",
+      "status": "PASS"
+    },
+    {
+      "name": "checkout installs first without record changes",
+      "status": "PASS"
+    },
+    {
+      "name": "cancellation installs after checkout without record changes",
+      "status": "PASS"
+    },
+    {
+      "name": "postflight SQL executes; invoker/search_path/JSONB/index and effective permissions match",
+      "status": "PASS",
+      "details": [
+        {
+          "anon": false,
+          "config": [
+            "search_path=\"\""
+          ],
+          "invoker": true,
+          "returns": "jsonb",
+          "service": true,
+          "authenticated": false
+        },
+        {
+          "anon": false,
+          "config": [
+            "search_path=\"\""
+          ],
+          "invoker": true,
+          "returns": "jsonb",
+          "service": true,
+          "authenticated": false
+        }
+      ]
+    },
+    {
+      "name": "valid checkout creates order/items and deducts exact inventory",
+      "status": "PASS",
+      "details": {
+        "unitsBefore": 10,
+        "unitsAfter": 8,
+        "total": 210.2
+      }
+    },
+    {
+      "name": "insufficient stock rolls back completely",
+      "status": "PASS"
+    },
+    {
+      "name": "invalid quantities and empty carts reject without persistent changes",
+      "status": "PASS"
+    },
+    {
+      "name": "same key replay returns one order; changed contents reject",
+      "status": "PASS"
+    },
+    {
+      "name": "concurrent last-unit customers serialize with exactly one success",
+      "status": "PASS",
+      "details": {
+        "lockWaitObserved": true,
+        "loserSQLState": "P1002",
+        "unitsAfter": 0
+      }
+    },
+    {
+      "name": "concurrent same-key submissions return the same persisted order",
+      "status": "PASS",
+      "details": {
+        "lockWaitObserved": true,
+        "unitsAfter": 8
+      }
+    },
+    {
+      "name": "fault after second stock update rolls back order/items and both deductions",
+      "status": "PASS"
+    },
+    {
+      "name": "historical snapshots and replay survive catalog/address/settings changes",
+      "status": "PASS"
+    },
+    {
+      "name": "cancellation restores aggregated variant quantities exactly once",
+      "status": "PASS",
+      "details": {
+        "unitsBefore": 5,
+        "unitsPurchased": 3,
+        "unitsAfterCancellation": 5
+      }
+    },
+    {
+      "name": "repeated cancellation does not restock twice",
+      "status": "PASS"
+    },
+    {
+      "name": "concurrent cancellations serialize and restore only once",
+      "status": "PASS",
+      "details": {
+        "lockWaitObserved": true,
+        "unitsAfter": 10
+      }
+    },
+    {
+      "name": "cancellation versus fulfillment is safe in both overlapping commit orders",
+      "status": "PASS",
+      "details": {
+        "lockWaitsObserved": 2,
+        "cancelledShippingUpdateCount": 0,
+        "shippedCancellationSQLState": "P2003"
+      }
+    },
+    {
+      "name": "cancellation and another customer checkout share product locks without stock corruption",
+      "status": "PASS",
+      "details": {
+        "lockWaitObserved": true,
+        "unitsAfter": 0
+      }
+    },
+    {
+      "name": "cancellation status/identity/provenance/item guards reject without restocking",
+      "status": "PASS"
+    },
+    {
+      "name": "fault after Cancelled status update rolls back status and all restoration",
+      "status": "PASS"
+    },
+    {
+      "name": "restocking overflow aborts without changing order or stock",
+      "status": "PASS"
+    },
+    {
+      "name": "anon/authenticated cannot execute either RPC and RLS hides private orders",
+      "status": "PASS"
+    },
+    {
+      "name": "native non-finite money, invalid configuration and ambiguous colors fail closed",
+      "status": "PASS"
+    },
+    {
+      "name": "migrations reject blind repeat without changing existing records",
+      "status": "PASS"
+    },
+    {
+      "name": "forward customer cancellation migration installs with service-only invoker capability",
+      "status": "PASS"
+    },
+    {
+      "name": "display-reference migration backfills legacy orders without changing existing fields",
+      "status": "PASS"
+    },
+    {
+      "name": "different concurrent checkouts receive unique sequential display references",
+      "status": "PASS",
+      "details": {
+        "counterLockWaitObserved": true
+      }
+    },
+    {
+      "name": "reference allocation rolls over by UTC year, expands beyond 9999 and cannot be overwritten",
+      "status": "PASS"
+    },
+    {
+      "name": "customer cancellation owner/role checks, exact quantities, replay denial and admin replay coexist",
+      "status": "PASS"
+    },
+    {
+      "name": "simultaneous customer cancellations deny the replay without double-restocking",
+      "status": "PASS",
+      "details": {
+        "lockWaitObserved": true,
+        "duplicateSQLState": "P3003"
+      }
+    },
+    {
+      "name": "customer/admin cancellation races preserve exactly-once restocking in both commit orders",
+      "status": "PASS",
+      "details": {
+        "lockWaitsObserved": 2
+      }
+    },
+    {
+      "name": "customer cancellation/fulfillment race is safe in both commit orders",
+      "status": "PASS",
+      "details": {
+        "lockWaitsObserved": 2
+      }
+    },
+    {
+      "name": "customer legacy/missing-item/missing-product/overflow failures roll back fully",
+      "status": "PASS"
+    },
+    {
+      "name": "fault after customer cancellation status change rolls back inventory/status and reference stays immutable",
+      "status": "PASS"
+    }
+  ],
+  "cleanup": "Owned temporary server stopped; disposable files retained locally",
+  "port": 62735,
+  "postgresVersion": "postgres (PostgreSQL) 16.13",
+  "baselineSchemaSha256": "0251FE4932B70F0A5653F746E965C97D8F376284B4B772391A6E47285B957184",
+  "harnessSha256": "016114C68B10006B7D7C7E1772108BD709F5939BE494818BEF4240B7BD419889",
+  "clusterIdentityVerified": true,
+  "serverVersion": "16.13",
+  "baseline": "Unmodified server/db/schema.sql plus explicit isolated role/Auth fixture adapter; no seed.sql",
+  "isolation": "read committed",
+  "status": "PASS",
+  "finishedAt": "2026-11-06T21:50:47.969Z",
+  "passed": 33,
+  "failed": 0
+}

@@ -72,20 +72,29 @@ test('network and non-JSON proxy failures reject with displayable errors', async
   await assert.rejects(service.getProducts(), { code: 'SERVER_ERROR' });
 });
 
-test('admin mock writes still appear in its listing without calling the API', async (t) => {
-  t.mock.method(globalThis, 'fetch', async () => { assert.fail('Mock reads must not call the API'); });
-  const created = await service.createProduct({ ...product, name: 'Admin demo ring' });
-  try {
-    assert.ok((await service.getMockProducts()).items.some((item) => item.id === created.id));
-    await service.updateProduct(created.id, { price: 700 });
-    assert.equal((await service.getMockProducts()).items.find((item) => item.id === created.id).price, 700);
-    assert.ok((await service.getFeaturedProducts()).length > 0);
-    assert.ok((await service.getProductsByIds(['p-01'])).length === 1);
-    assert.ok((await service.getCollections()).length === 6);
-    assert.ok((await service.getCollectionBySlug('power')).products.length > 0);
-    assert.ok((await service.getPackages()).length > 0);
-    assert.ok((await service.getRelatedProducts(product)).length > 0);
-    assert.ok((await service.getSuggestedProducts()).length > 0);
-  } finally { await service.deleteProduct(created.id); }
-  assert.equal((await service.getMockProducts()).items.some((item) => item.id === created.id), false);
+test('featured, ID, collection, related and suggested products use real catalog reads; packages remain static content', async (t) => {
+  const other = { ...product, id: 'second', stone: 'space', isFeatured: false };
+  const collection = { id: 'col-power', slug: 'power', stone: 'power', color: 'Purple', gemstone: 'Amethyst' };
+  const calls = [];
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    calls.push(url);
+    const query = new URL(url, 'http://localhost');
+    if (query.pathname === '/api/collections') return Response.json({ items: [collection] });
+    assert.equal(query.pathname, '/api/products');
+    const ids = query.searchParams.get('ids')?.split(',');
+    const stone = query.searchParams.get('stone');
+    const items = [product, other].filter((item) => (!ids || ids.includes(item.id)) && (!stone || stone === item.stone));
+    return Response.json({ items, total: items.length });
+  });
+  assert.deepEqual(await service.getFeaturedProducts(), [product]);
+  assert.deepEqual(await service.getProductsByIds([product.id]), [product]);
+  assert.deepEqual(await service.getProductsByIds([]), []);
+  assert.deepEqual(await service.getCollections(), [collection]);
+  assert.deepEqual((await service.getCollectionBySlug('power')).products, [product]);
+  assert.deepEqual(await service.getRelatedProducts(product), [other]);
+  assert.deepEqual(await service.getSuggestedProducts(['power']), [other]);
+  const before = calls.length;
+  assert.ok((await service.getPackages()).length > 0);
+  assert.equal(calls.length, before);
+  assert.equal(service.getMockProducts, undefined);
 });

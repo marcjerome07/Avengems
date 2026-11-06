@@ -1,4 +1,4 @@
-import { ServiceError } from './mockDb';
+import { ServiceError } from './serviceError';
 
 async function request(url, options = {}) {
   let response;

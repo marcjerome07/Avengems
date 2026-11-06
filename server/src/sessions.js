@@ -6,6 +6,7 @@ const random = () => randomBytes(32).toString('base64url');
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b)
   && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 const rejected = (error) => [400, 401, 403, 422].includes(error?.status);
+export const SESSION_IDLE_MS = 20 * 60 * 1000;
 
 /** Single-process, bounded session coordination. A restart deliberately signs sessions out. */
 export function createCookieSessions({ createAuthClient, loadUser, origin, production = false,
@@ -35,11 +36,18 @@ export function createCookieSessions({ createAuthClient, loadUser, origin, produ
   function clear(res) {
     for (const kind of Object.keys(names)) res.clearCookie(names[kind], cookieOptions(kind));
   }
-  function clearAccess(res) { res.clearCookie(names.access, cookieOptions('access')); }
+  function clearAccess(res, req) {
+    // A delayed 401 for the previous token must not erase a freshly rotated cookie.
+    if (req) {
+      const record = sessions.get(readCookie(req, 'sid'));
+      if (!record || !equal(readCookie(req, 'access'), record.session.access_token)) return;
+    }
+    res.clearCookie(names.access, cookieOptions('access'));
+  }
   function prune() {
     const time = now();
     for (const [id, record] of sessions) {
-      if (record.deadline <= time && !record.pending) { record.closed = true; sessions.delete(id); }
+      if (Math.min(record.deadline, record.idleDeadline) <= time && !record.pending) { record.closed = true; sessions.delete(id); }
     }
     for (const [key, entry] of attempts) if (entry.until <= time) attempts.delete(key);
   }
@@ -51,7 +59,19 @@ export function createCookieSessions({ createAuthClient, loadUser, origin, produ
       clear(res);
       throw unauthorized();
     }
+    if (record.idleDeadline <= now()) {
+      record.closed = true; sessions.delete(id); clear(res);
+      throw new ApiError(401, 'SESSION_IDLE_EXPIRED', 'Your session expired after 20 minutes of inactivity. Please log in again.');
+    }
     return record;
+  }
+  function timing(record) {
+    return { key: record.publicId, idleExpiresAt: record.idleDeadline, absoluteExpiresAt: record.deadline, serverNow: now() };
+  }
+  function metadata(req, res) { return timing(getRecord(req, res)); }
+  function requireSession(req, res, next) {
+    // All private production routes, including Bearer requests, require an app session.
+    req.appSession = getRecord(req, res); next();
   }
   function csrfMac(value) { return createHmac('sha256', csrfSecret).update(value).digest('base64url'); }
   function newCsrf() {
@@ -132,7 +152,7 @@ export function createCookieSessions({ createAuthClient, loadUser, origin, produ
     return session;
   }
   function writeSession(res, record) {
-    if (record.closed || record.deadline <= now()) { clear(res); throw unauthorized(); }
+    if (record.closed || Math.min(record.deadline, record.idleDeadline) <= now()) { clear(res); throw unauthorized(); }
     for (const [kind, value] of [['access', record.session.access_token], ['refresh', record.session.refresh_token], ['sid', record.id]]) {
       const options = cookieOptions(kind);
       if (record.remember) options.maxAge = Math.max(0, Math.min(record.deadline - now(),
@@ -180,12 +200,12 @@ export function createCookieSessions({ createAuthClient, loadUser, origin, produ
     const old = sessions.get(readCookie(req, 'sid'));
     if (old) { old.closed = true; sessions.delete(old.id); }
     if (sessions.size >= maxSessions) { await call(() => revoke(session)); throw authUnavailable(); }
-    const record = { id: random(), session, userId: user.id, csrf: newCsrf(),
+    const record = { id: random(), publicId: random(), idleDeadline: now() + SESSION_IDLE_MS, session, userId: user.id, csrf: newCsrf(),
       remember: body.remember === true, closed: false, pending: null, lastRefresh: -Infinity,
       deadline: now() + (body.remember ? 30 * 24 : 12) * 60 * 60 * 1000 };
     sessions.set(record.id, record);
     writeSession(res, record);
-    return { user, csrfToken: record.csrf };
+    return { user, csrfToken: record.csrf, session: timing(record) };
   }
   async function login(req, res) {
     if (pendingLogins.size >= maxSessions) throw authUnavailable();
@@ -207,9 +227,9 @@ export function createCookieSessions({ createAuthClient, loadUser, origin, produ
     }
     return Promise.allSettled(pending);
   }
-  function accessToken(req, res) {
+  function accessToken(req, res, explicitToken) {
     const record = getRecord(req, res);
-    const token = readCookie(req, 'access');
+    const token = explicitToken ?? readCookie(req, 'access');
     if (!equal(token, record.session.access_token)
       && !(now() - record.lastRefresh < graceMs && equal(token, record.previousAccess))) throw unauthorized();
     // Expiry is verified by getUser; don't discard refresh credentials on an expired access token.
@@ -239,7 +259,7 @@ export function createCookieSessions({ createAuthClient, loadUser, origin, produ
     }
     try {
       if (record.pending) await record.pending;
-      if (record.closed || record.deadline <= now()) throw unauthorized();
+      getRecord(req, res); // A pending refresh cannot cross idle/absolute expiration.
       const verified = await call(() => createAuthClient().auth.getUser(record.session.access_token));
       if (verified.error || verified.data?.user?.id !== record.userId) {
         if (!verified.error || rejected(verified.error)) { record.closed = true; throw unauthorized(); }
@@ -247,7 +267,7 @@ export function createCookieSessions({ createAuthClient, loadUser, origin, produ
       }
       const user = await loadUser(verified.data.user);
       writeSession(res, record);
-      return { user, csrfToken: record.csrf };
+      return { user, csrfToken: record.csrf, session: timing(record) };
     } catch (error) {
       if (record.closed || error.status === 401 || error.status === 403) {
         record.closed = true;
@@ -261,6 +281,29 @@ export function createCookieSessions({ createAuthClient, loadUser, origin, produ
       throw error;
     }
   }
+  async function activity(req, res) {
+    if (!req.is('application/json') || !req.body || Array.isArray(req.body)
+      || Object.keys(req.body).some((key) => key !== 'elapsedMs')
+      || (req.body.elapsedMs !== undefined && (!Number.isInteger(req.body.elapsedMs) || req.body.elapsedMs < 0 || req.body.elapsedMs > 30000))) {
+      throw new ApiError(400, 'VALIDATION_ERROR', 'Provide only an optional recent activity age.');
+    }
+    const record = getRecord(req, res);
+    const token = accessToken(req, res);
+    const activityTime = now();
+    const verified = await call(() => createAuthClient().auth.getUser(token));
+    if (verified.error || verified.data?.user?.id !== record.userId) {
+      if (verified.error && !rejected(verified.error)) throw authUnavailable();
+      clearAccess(res, req); throw unauthorized();
+    }
+    const user = await loadUser(verified.data.user);
+    if (!user.verified || !['customer', 'admin'].includes(user.role)) throw new ApiError(403, 'PROFILE_UNAVAILABLE', 'A verified account is required.');
+    getRecord(req, res); // Recheck after I/O, then update synchronously in this process.
+    // A bounded past age accounts for coalesced real input. It can only REDUCE
+    // the candidate deadline; client timestamps/future deadlines are never accepted.
+    record.idleDeadline = Math.min(record.deadline, Math.max(record.idleDeadline, activityTime - (req.body.elapsedMs ?? 0) + SESSION_IDLE_MS));
+    return { session: timing(record) };
+  }
+  function checkIdle(req, res) { return { session: metadata(req, res) }; }
   async function logout(req, res) {
     let record;
     try { record = getRecord(req, res); } catch (error) { clear(res); throw error; }
@@ -274,6 +317,6 @@ export function createCookieSessions({ createAuthClient, loadUser, origin, produ
     });
     return { ok: true };
   }
-  return { csrf, protect, rateLimit, login, refresh, logout, accessToken, clearAccess,
+  return { csrf, protect, rateLimit, login, refresh, logout, activity, checkIdle, metadata, requireSession, accessToken, clearAccess,
     invalidateUser, clearSessionCookies: clear };
 }

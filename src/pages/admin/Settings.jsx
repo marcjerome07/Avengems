@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import AdminHeader from '../../components/admin/AdminHeader';
+import AdminDataState from '../../components/admin/AdminDataState';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import Skeleton from '../../components/ui/Skeleton';
@@ -27,7 +28,7 @@ function SettingsForm({ initial }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    const nonNegative = (label) => (v) => (v !== '' && Number(v) >= 0 ? '' : `${label} must be 0 or more.`);
+    const nonNegative = (label) => (v) => (/^\d{1,8}(\.\d{1,2})?$/.test(v) ? '' : `${label} must be finite, nonnegative money with at most two decimal places.`);
     const result = runValidators(values, {
       storeName: (v) => validateRequired(v, 'Store name'),
       contactEmail: validateEmail,
@@ -80,7 +81,7 @@ function SettingsForm({ initial }) {
           error={errors.freeShippingThreshold}
         />
       </div>
-      <p className="admin-note">Prototype: shipping changes apply to cart totals until the page is reloaded.</p>
+      <p className="admin-note">Settings persist in the database and apply to new cart quotes and checkout calculations.</p>
       <div>
         <Button type="submit" loading={saving}>
           Save settings
@@ -92,11 +93,11 @@ function SettingsForm({ initial }) {
 
 export default function Settings() {
   useDocumentTitle('Admin · Settings');
-  const { data } = useServiceData(getSettings);
+  const { data, error, reload } = useServiceData(getSettings);
   return (
     <>
       <AdminHeader title="Settings" subtitle="Store details and shipping rules." />
-      <section className="panel">{data ? <SettingsForm initial={data} /> : <Skeleton height={320} />}</section>
+      <section className="panel">{error ? <AdminDataState error={error} onRetry={reload} /> : data ? <SettingsForm initial={data} /> : <Skeleton height={320} />}</section>
     </>
   );
 }
