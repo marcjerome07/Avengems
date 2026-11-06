@@ -11,6 +11,7 @@ const vite = await createServer({ configFile: false, plugins: [react()],
   server: { middlewareMode: true, ws: false }, optimizeDeps: { noDiscovery: true, include: [] }, appType: 'custom' });
 after(() => vite.close());
 const service = await vite.ssrLoadModule('/src/services/authService.js');
+const sessionService = await vite.ssrLoadModule('/src/services/sessionService.js');
 const { createAuthSession } = await vite.ssrLoadModule('/src/services/authSession.js');
 const { AuthProvider } = await vite.ssrLoadModule('/src/context/AuthContext.jsx');
 const { useAuth } = await vite.ssrLoadModule('/src/context/useAuth.js');
@@ -200,4 +201,99 @@ test('a CSRF bootstrap failure must not be mistaken for successful logout', asyn
   const calls = mockApi(t, [{ url: '/api/auth/csrf', status: 401, body: { code: 'UNAUTHORIZED' } }]);
   await assert.rejects(service.logout(), /could not be confirmed/);
   assert.equal(calls.length, 1);
+});
+
+test('a CSRF bootstrap 401 during renewal is unavailable, not proof that an authenticated session ended', async (t) => {
+  mockApi(t, [{ url: '/api/me', body: user }, { url: '/api/me', status: 401, body: { code: 'UNAUTHORIZED' } },
+    { url: '/api/auth/csrf', status: 401, body: { code: 'UNAUTHORIZED' } }]);
+  const state = createAuthSession(service); await state.restore(); await state.restore();
+  assert.equal(state.getSnapshot().status, 'authenticated');
+  assert.equal(state.getSnapshot().user.id, user.id);
+  assert.equal(state.getSnapshot().error.code, 'AUTH_UNAVAILABLE');
+});
+
+test('a transient minute/focus revalidation error retains the verified session, hides protected content and recovers', async (t) => {
+  const adminUser = { ...user, role: 'admin' };
+  const calls = mockApi(t, [{ url: '/api/me', body: adminUser },
+    { url: '/api/me', status: 503, body: { code: 'AUTH_UNAVAILABLE', message: 'Temporarily unavailable.' } },
+    { url: '/api/me', body: adminUser }]);
+  const state = createAuthSession(service);
+  await state.restore();
+  assert.match(render(state, AdminRoute, 'ADMIN CONTENT'), /ADMIN CONTENT/);
+  await state.restore(); // AuthProvider invokes the same path every visible minute/focus.
+  assert.equal(state.getSnapshot().user?.id, user.id, 'A temporary check failure must not discard identity');
+  assert.equal(state.getSnapshot().status, 'authenticated', 'The existing periodic retry must remain eligible');
+  assert.equal(state.getSnapshot().error.code, 'AUTH_UNAVAILABLE');
+  assert.match(render(state, AdminRoute, 'ADMIN CONTENT'), /Unable to verify your session/);
+  assert.match(render(state, Login), /Welcome Back/, 'A retained recovery error must not bounce Login straight back to the blocked guard');
+  assert.doesNotMatch(render(state, AdminRoute, 'ADMIN CONTENT'), /ADMIN CONTENT/);
+  await state.restore();
+  assert.equal(state.getSnapshot().error, null);
+  assert.match(render(state, AdminRoute, 'ADMIN CONTENT'), /ADMIN CONTENT/);
+  assert.equal(calls.length, 3); assert.ok(calls.every((call) => call.url === '/api/me'));
+});
+
+test('server timing survives cookie renewal while idle rejection locks both role states without claiming provider logout', async (t) => {
+  for (const role of ['admin', 'customer']) {
+    const timing = { key: 'public-timing-key', idleExpiresAt: 1200000, absoluteExpiresAt: 43200000, serverNow: 0 };
+    mockApi(t, [{ url: '/api/me', body: { ...user, role, session: timing } },
+      { url: '/api/me', status: 401, body: { code: 'SESSION_IDLE_EXPIRED', message: 'Idle expired' } }]);
+    const state = createAuthSession(service); await state.restore();
+    assert.deepEqual(state.getSnapshot().user.session, timing); await state.restore();
+    assert.equal(state.getSnapshot().user, null); assert.equal(state.getSnapshot().idleExpired, true);
+    assert.equal(state.getSnapshot().error, null); assert.doesNotMatch(render(state, AdminRoute, 'PRIVATE'), /PRIVATE/);
+    assert.match(render(state, Login), /20-minute inactivity/);
+    state.expireIdle(true); assert.match(render(state, Login), /could not be reached to confirm/);
+  }
+});
+
+test('real activity transport uses CSRF, renews expired access once and never submits a client deadline', async (t) => {
+  const timing = { key: 'public-timing-key', idleExpiresAt: 1200000, absoluteExpiresAt: 43200000, serverNow: 0 };
+  const calls = mockApi(t, [csrf(), { url: '/api/auth/activity', status: 401, body: { code: 'UNAUTHORIZED' } },
+    csrf(), { url: '/api/auth/refresh', body: { user } }, csrf(), { url: '/api/auth/activity', body: { session: timing } }]);
+  assert.deepEqual(await sessionService.recordSessionActivity(), timing);
+  assert.ok(Object.keys(JSON.parse(calls[5].options.body)).every((key) => key === 'elapsedMs'));
+  assert.equal(calls[5].options.headers['X-CSRF-Token'], 'fabricated-csrf');
+  assert.equal(calls.filter((call) => call.url === '/api/auth/refresh').length, 1);
+});
+
+test('idle access expiry with an interrupted refresh retains customer/admin session until a secure retry succeeds', async (t) => {
+  for (const role of ['customer', 'admin']) {
+    const identity = { ...user, role };
+    const calls = mockApi(t, [{ url: '/api/me', body: identity },
+      { url: '/api/me', status: 401, body: { code: 'UNAUTHORIZED' } }, csrf(),
+      { url: '/api/auth/refresh', error: new TypeError('offline') },
+      { url: '/api/me', status: 401, body: { code: 'UNAUTHORIZED' } }, csrf(),
+      { url: '/api/auth/refresh', body: { user: identity } }, { url: '/api/me', body: identity }]);
+    const state = createAuthSession(service); await state.restore();
+    await state.restore();
+    assert.equal(state.getSnapshot().status, 'authenticated'); assert.equal(state.getSnapshot().user.role, role);
+    assert.equal(state.getSnapshot().error.code, 'NETWORK_ERROR'); assert.equal(calls.length, 4, 'No blind network retry');
+    assert.doesNotMatch(render(state, ProtectedRoute, 'PRIVATE CONTENT'), /PRIVATE CONTENT/);
+    await state.restore();
+    assert.equal(state.getSnapshot().status, 'authenticated'); assert.equal(state.getSnapshot().error, null);
+    assert.equal(state.getSnapshot().user.role, role); assert.equal(calls.length, 8);
+    assert.equal(calls[6].options.headers['X-CSRF-Token'], 'fabricated-csrf');
+    assert.ok(!calls.some((call) => call.url === '/api/auth/logout'));
+  }
+});
+
+test('transient recovery never preserves rejected, unverified or demoted admin privileges', async (t) => {
+  for (const failure of [
+    { url: '/api/me', status: 403, body: { code: 'PROFILE_UNAVAILABLE' } },
+    { url: '/api/me', body: { ...user, role: 'unknown' } },
+    { url: '/api/me', body: { ...user, verified: false } },
+  ]) {
+    mockApi(t, [{ url: '/api/me', body: { ...user, role: 'admin' } }, failure]);
+    const state = createAuthSession(service); await state.restore(); await state.restore();
+    assert.equal(state.getSnapshot().user, null); assert.equal(state.getSnapshot().status, 'error');
+    assert.doesNotMatch(render(state, AdminRoute, 'ADMIN CONTENT'), /ADMIN CONTENT/);
+  }
+  mockApi(t, [{ url: '/api/me', body: { ...user, role: 'admin' } },
+    { url: '/api/me', status: 503, body: { code: 'DATABASE_UNAVAILABLE' } },
+    { url: '/api/me', body: user }, { url: '/api/me', status: 401, body: { code: 'UNAUTHORIZED' } },
+    csrf(), { url: '/api/auth/refresh', status: 401, body: { code: 'UNAUTHORIZED' } }]);
+  const state = createAuthSession(service); await state.restore(); await state.restore(); await state.restore();
+  assert.equal(state.getSnapshot().user.role, 'customer'); assert.doesNotMatch(render(state, AdminRoute, 'ADMIN CONTENT'), /ADMIN CONTENT/);
+  await state.restore(); assert.equal(state.getSnapshot().user, null); assert.equal(state.getSnapshot().status, 'anonymous');
 });

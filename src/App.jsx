@@ -8,6 +8,7 @@ import ScrollToTop from './components/layout/ScrollToTop';
 import StoreLayout from './components/layout/StoreLayout';
 import ProtectedRoute from './components/routing/ProtectedRoute';
 import AdminRoute from './components/routing/AdminRoute';
+import IdleSessionRedirect from './components/routing/IdleSessionRedirect';
 
 import Home from './pages/Home';
 import Shop from './pages/Shop';
@@ -61,6 +62,7 @@ export default function App() {
           <CartProvider>
             <WishlistProvider>
               <ScrollToTop />
+              <IdleSessionRedirect />
               <Routes>
                 <Route element={<StoreLayout />}>
                   <Route index element={<Home />} />

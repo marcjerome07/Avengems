@@ -11,7 +11,8 @@ const SORTS = {
   'price-desc': [['price', false]],
   rating: [['rating', false], ['review_count', false]],
 };
-const SELECT = '*, collection:collections!inner(color, gemstone)';
+export const PRODUCT_SELECT = '*, collection:collections!inner(color, gemstone)';
+const SELECT = PRODUCT_SELECT;
 
 function invalid(message) {
   throw new ApiError(400, 'VALIDATION_ERROR', message);
@@ -64,7 +65,7 @@ function parseFilters(query) {
   return filters;
 }
 
-function toProduct(row) {
+export function toProduct(row) {
   return {
     id: row.id,
     slug: row.slug,

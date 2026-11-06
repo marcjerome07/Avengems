@@ -1,0 +1,148 @@
+{
+  "startedAt": "2026-11-06T21:07:09.907Z",
+  "environment": "disposable native loopback PostgreSQL",
+  "database": "avengems_orders_stage",
+  "dataDirectory": "C:\\Users\\User\\AppData\\Local\\Temp\\avengems-pg-stage-q3u45X\\data",
+  "sharedSupabaseContacted": false,
+  "modelLimitations": [
+    "Minimal disposable auth.users FK/trigger fixture, not Supabase Auth",
+    "Local roles/grants model; actual Supabase grants, PostgREST and HTTP/email flows remain unverified"
+  ],
+  "artifacts": {
+    "checkout-orders.sql": "13F0BF3381B2A5CCA3FE450FF7CEE5FCA1E78539AC49E27E24494685862A09B5",
+    "admin-order-cancel.sql": "3D35DD62DCA2A83DF8886A6B2F8E40E48844A70C821BEB2F039610B260D553A7"
+  },
+  "tests": [
+    {
+      "name": "preflight SQL executes against baseline and conflict query is empty",
+      "status": "PASS"
+    },
+    {
+      "name": "checkout installs first without record changes",
+      "status": "PASS"
+    },
+    {
+      "name": "cancellation installs after checkout without record changes",
+      "status": "PASS"
+    },
+    {
+      "name": "postflight SQL executes; invoker/search_path/JSONB/index and effective permissions match",
+      "status": "PASS",
+      "details": [
+        {
+          "anon": false,
+          "config": [
+            "search_path=\"\""
+          ],
+          "invoker": true,
+          "returns": "jsonb",
+          "service": true,
+          "authenticated": false
+        },
+        {
+          "anon": false,
+          "config": [
+            "search_path=\"\""
+          ],
+          "invoker": true,
+          "returns": "jsonb",
+          "service": true,
+          "authenticated": false
+        }
+      ]
+    },
+    {
+      "name": "valid checkout creates order/items and deducts exact inventory",
+      "status": "PASS",
+      "details": {
+        "unitsBefore": 10,
+        "unitsAfter": 8,
+        "total": 210.2
+      }
+    },
+    {
+      "name": "insufficient stock rolls back completely",
+      "status": "PASS"
+    },
+    {
+      "name": "same key replay returns one order; changed contents reject",
+      "status": "PASS"
+    },
+    {
+      "name": "concurrent last-unit customers serialize with exactly one success",
+      "status": "PASS",
+      "details": {
+        "lockWaitObserved": true,
+        "loserSQLState": "P1002",
+        "unitsAfter": 0
+      }
+    },
+    {
+      "name": "concurrent same-key submissions return the same persisted order",
+      "status": "PASS",
+      "details": {
+        "lockWaitObserved": true,
+        "unitsAfter": 8
+      }
+    },
+    {
+      "name": "fault after second stock update rolls back order/items and both deductions",
+      "status": "PASS"
+    },
+    {
+      "name": "historical snapshots and replay survive catalog/address/settings changes",
+      "status": "PASS"
+    },
+    {
+      "name": "cancellation restores aggregated variant quantities exactly once",
+      "status": "PASS",
+      "details": {
+        "unitsBefore": 5,
+        "unitsPurchased": 3,
+        "unitsAfterCancellation": 5
+      }
+    },
+    {
+      "name": "repeated cancellation does not restock twice",
+      "status": "PASS"
+    },
+    {
+      "name": "concurrent cancellations serialize and restore only once",
+      "status": "PASS",
+      "details": {
+        "lockWaitObserved": true,
+        "unitsAfter": 10
+      }
+    },
+    {
+      "name": "cancellation status/identity/provenance/item guards reject without restocking",
+      "status": "PASS"
+    },
+    {
+      "name": "fault after Cancelled status update rolls back status and all restoration",
+      "status": "PASS"
+    },
+    {
+      "name": "anon/authenticated cannot execute either RPC and RLS hides private orders",
+      "status": "PASS"
+    },
+    {
+      "name": "native non-finite money, invalid configuration and ambiguous colors fail closed",
+      "status": "PASS"
+    },
+    {
+      "name": "migrations reject blind repeat without changing existing records",
+      "status": "PASS"
+    }
+  ],
+  "cleanup": "Owned temporary server stopped; disposable files retained locally",
+  "port": 60064,
+  "postgresVersion": "postgres (PostgreSQL) 16.13",
+  "clusterIdentityVerified": true,
+  "baseline": "Unmodified server/db/schema.sql plus explicit isolated role/Auth fixture adapter; no seed.sql",
+  "isolation": "read committed",
+  "status": "PASS",
+  "finishedAt": "2026-11-06T21:07:28.998Z",
+  "passed": 19,
+  "failed": 0
+}

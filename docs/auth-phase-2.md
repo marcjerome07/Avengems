@@ -1,5 +1,8 @@
 # Authentication Phase 2: backend cookie sessions
 
+Historical phase notes. See [current session recovery and inactivity behavior](authentication-idle-policy.md)
+for the implemented frontend and server-enforced 20-minute policy.
+
 This phase adds backend login, logout and explicit refresh. Frontend authentication
 is still mocked. Registration, OTP, OAuth, password recovery and migrations are
 outside scope. No Supabase project settings are changed and no users are created.

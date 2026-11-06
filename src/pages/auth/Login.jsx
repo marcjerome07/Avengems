@@ -26,7 +26,7 @@ function GoogleMark() {
 }
 
 export default function Login() {
-  const { login, logout, isAuthenticated, isAdmin, loading: initializing, signingOut, error: sessionError, logoutFailed, retrySession } = useAuth();
+  const { login, logout, isAuthenticated, isAdmin, loading: initializing, signingOut, error: sessionError, logoutFailed, retrySession, idleExpired, expiryUnconfirmed } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,7 +47,7 @@ export default function Login() {
   if (initializing || signingOut) {
     return <AuthShell title="Welcome Back" docTitle="Log in"><p role="status">Checking your session…</p></AuthShell>;
   }
-  if (isAuthenticated && !loading) {
+  if (isAuthenticated && !sessionError && !loading) {
     return <Navigate to={fromPath ?? (isAdmin ? '/admin' : '/account')} replace />;
   }
 
@@ -95,6 +95,8 @@ export default function Login() {
           void (logoutFailed ? logout() : retrySession()).catch((error) => setFormError({ code: error.code, message: error.message }));
         }}>{logoutFailed ? 'Retry sign out' : 'Retry session check'}</Button>
       </FormAlert>}
+      {idleExpired && <FormAlert type="info"><p>Your application session expired. Please log in again. Sessions have a 20-minute inactivity limit and an absolute time limit.</p>
+        {expiryUnconfirmed && <p>The server could not be reached to confirm expiration. This page is locked locally; server access still requires a valid, unexpired session.</p>}</FormAlert>}
       {from && !formError && <FormAlert type="info">Please log in to continue.</FormAlert>}
 
       {formError?.code === 'UNVERIFIED' ? (

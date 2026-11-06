@@ -1,4 +1,5 @@
 import AdminHeader from '../../components/admin/AdminHeader';
+import AdminDataState from '../../components/admin/AdminDataState';
 import { StoneBarChart, SimpleBarChart } from '../../components/admin/Charts';
 import Skeleton, { TableSkeleton } from '../../components/ui/Skeleton';
 import useServiceData from '../../hooks/useServiceData';
@@ -9,11 +10,14 @@ import { stoneTheme } from '../../utils/stoneTheme';
 
 export default function Analytics() {
   useDocumentTitle('Admin · Analytics');
-  const { data } = useServiceData(getAnalytics);
+  const { data, error, reload } = useServiceData(getAnalytics);
+  if (error) return <><AdminHeader title="Analytics" /><AdminDataState error={error} onRetry={reload} /></>;
 
   return (
     <>
-      <AdminHeader title="Analytics" subtitle="Revenue from non-cancelled orders, all time." />
+      <AdminHeader title="Analytics" subtitle="Demo order-item value, excluding cancellations. These are not collected payments." />
+      <AdminDataState error={error} onRetry={reload} />
+      {data && !data.topProducts.length && <p className="panel">No non-cancelled order items yet. Sales are zero until real demo orders are placed.</p>}
 
       <div className="admin-grid-even">
         <section className="panel" aria-labelledby="stone-title">

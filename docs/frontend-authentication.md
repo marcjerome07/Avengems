@@ -1,5 +1,8 @@
 # Frontend authentication: backend cookie sessions
 
+Current behavior includes the [20-minute server-enforced inactivity policy](authentication-idle-policy.md).
+Only genuine input renews idle time; reload, polling, refresh and focus do not.
+
 The login form and all four logout controls now use the real Express Auth API.
 The existing UI, remember preference, return-to-page navigation and server-role
 admin/customer destinations are retained. Demo credentials have been removed from

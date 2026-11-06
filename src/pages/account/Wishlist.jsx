@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Heart, ShoppingBag, Trash2 } from 'lucide-react';
 import EmptyState from '../../components/ui/EmptyState';
@@ -8,32 +9,33 @@ import ProductMedia from '../../components/product/ProductMedia';
 import { useWishlist } from '../../context/useWishlist';
 import { useCart } from '../../context/useCart';
 import { useToast } from '../../context/useToast';
-import { getProductsByIds } from '../../services/productService';
-import useServiceData from '../../hooks/useServiceData';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import { formatPrice } from '../../utils/formatPrice';
 
+export function WishlistLoadState({ loading, error, onRetry, children }) {
+  if (loading) return <div role="status" aria-label="Loading wishlist"><ProductGridSkeleton count={3} /></div>;
+  if (error) return <div role="alert"><p>{error.message}</p><Button onClick={onRetry}>Retry wishlist</Button></div>;
+  return children;
+}
+
 export default function Wishlist() {
   useDocumentTitle('Wishlist');
-  const { ids, remove } = useWishlist();
+  const { items: products, remove, isPending, loading, error, reload } = useWishlist();
   const { addItem } = useCart();
   const { showToast } = useToast();
-  // Fetch once per visit; removals are applied locally so cards don't flash.
-  const { data, loading, setData } = useServiceData(() => getProductsByIds(ids), []);
-  const products = (data ?? []).filter((p) => ids.includes(p.id));
-
-  function handleRemove(product) {
-    remove(product.id);
-    setData((list) => list.filter((p) => p.id !== product.id));
-    showToast(`${product.name} removed from your wishlist.`, { type: 'info' });
+  const moving = useRef(new Set());
+  async function handleRemove(product) {
+    if (await remove(product.id)) showToast(`${product.name} removed from your wishlist.`, { type: 'info' });
   }
 
-  function handleMove(product) {
-    if (addItem(product, { silent: true })) {
-      remove(product.id);
-      setData((list) => list.filter((p) => p.id !== product.id));
-      showToast(`${product.name} moved to your cart.`, { type: 'success', action: { label: 'View cart', to: '/cart' } });
-    }
+  async function handleMove(product) {
+    if (moving.current.has(product.id)) return;
+    moving.current.add(product.id);
+    try {
+      if (addItem(product, { silent: true })) {
+        if (await remove(product.id)) showToast(`${product.name} moved to your cart.`, { type: 'success', action: { label: 'View cart', to: '/cart' } });
+      }
+    } finally { moving.current.delete(product.id); }
   }
 
   return (
@@ -41,11 +43,11 @@ export default function Wishlist() {
       <header>
         <h1 className="account-title">Wishlist</h1>
         <p className="account-subtitle">The pieces you&apos;re dreaming about, saved in one place.</p>
+        <Button variant="ghost" onClick={reload} disabled={loading}>Refresh wishlist</Button>
       </header>
 
-      {loading ? (
-        <ProductGridSkeleton count={3} />
-      ) : products.length ? (
+      <WishlistLoadState loading={loading} error={error} onRetry={reload}>
+      {products.length ? (
         <ul className="wish-grid" role="list">
           {products.map((p) => {
             const oos = p.stock <= 0;
@@ -69,13 +71,14 @@ export default function Wishlist() {
                   <p className="wish-card__price">{formatPrice(p.price)}</p>
                 </div>
                 <div className="wish-card__actions">
-                  <Button size="sm" icon={ShoppingBag} onClick={() => handleMove(p)} disabled={oos}>
+                  <Button size="sm" icon={ShoppingBag} onClick={() => handleMove(p)} disabled={oos || isPending(p.id)}>
                     {oos ? 'Out of stock' : 'Move to cart'}
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
                     icon={Trash2}
+                    disabled={isPending(p.id)}
                     onClick={() => handleRemove(p)}
                     aria-label={`Remove ${p.name} from wishlist`}
                   >
@@ -91,6 +94,7 @@ export default function Wishlist() {
           <Button to="/shop">Discover pieces</Button>
         </EmptyState>
       )}
+      </WishlistLoadState>
     </>
   );
 }

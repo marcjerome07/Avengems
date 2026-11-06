@@ -30,14 +30,7 @@ export function clone(value) {
 }
 
 /** Error shape every service throws: { code, message } */
-export class ServiceError extends Error {
-  constructor(code, message, extra = {}) {
-    super(message);
-    this.name = 'ServiceError';
-    this.code = code;
-    Object.assign(this, extra);
-  }
-}
+export { ServiceError } from './serviceError';
 
 /**
  * MOCK ONLY. A tiny non-cryptographic hash so plain-text passwords never sit in localStorage.

@@ -1,61 +1,23 @@
-// MOCK SERVICE — replace the body of these functions with real API calls when the backend is ready.
-//
-// Suggested endpoints:
-//   POST /api/orders                 { items, customer, shipping, paymentMethod } -> order
-//   GET  /api/me/orders
-//   GET  /api/orders/:id
-//
-// No payment is processed. Card details never reach this service: the checkout page
-// validates them and discards them, sending only the payment method name.
+import { commerce } from './commerceService';
+import { cartSelections } from './cartService';
+import { ServiceError } from './serviceError';
 
-import { delay, clone, ServiceError, ordersTable } from './mockDb';
-import { calculateTotals } from './cartService';
-
-function generateOrderNumber() {
-  const existing = new Set(ordersTable.all().map((o) => o.id));
-  let id;
-  do {
-    id = `AVG-2026-${String(Math.floor(10000 + Math.random() * 90000))}`;
-  } while (existing.has(id));
-  return id;
+export function orderRequest({ items, customer, shipping, paymentMethod }) {
+  return { items: cartSelections(items), customer: { name: customer?.name, email: customer?.email, phone: customer?.phone },
+    shipping: shipping?.addressId ? { addressId: shipping.addressId } : { address: shipping?.address, city: shipping?.city, province: shipping?.province, postalCode: shipping?.postalCode }, paymentMethod };
 }
-
-export async function placeOrder({ userId, items, customer, shipping, paymentMethod }) {
-  await delay(700, 1200);
-  if (!items?.length) throw new ServiceError('EMPTY_CART', 'Your cart is empty.');
-  const totals = calculateTotals(items);
-  const order = {
-    id: generateOrderNumber(),
-    userId,
-    createdAt: new Date().toISOString(),
-    status: 'Pending',
-    paymentMethod,
-    customer: clone(customer),
-    shipping: clone(shipping),
-    items: clone(items),
-    subtotal: totals.subtotal,
-    customizationTotal: totals.customizationTotal,
-    shippingFee: totals.shippingFee,
-    total: totals.total,
-    source: 'placed',
-  };
-  ordersTable.insert(order);
-  return clone(order);
+export async function placeOrder(payload, { idempotencyKey, ownerId } = {}) {
+  const request = orderRequest(payload);
+  const order = await commerce.request('/api/me/orders', { method: 'POST', body: request, key: idempotencyKey, ownerId });
+  if (!order?.id || !Array.isArray(order.items)) throw new ServiceError('SERVER_ERROR', 'Order creation could not be confirmed. Retry the same checkout.');
+  return order;
 }
-
-export async function getOrdersByUser(userId) {
-  await delay();
-  return clone(ordersTable.all().filter((o) => o.userId === userId));
-}
-
-/** Customers can only read their own orders; admins can read any. */
-export async function getOrderById(orderId, { userId, isAdmin = false } = {}) {
-  await delay();
-  const order = ordersTable.find(orderId);
-  if (!order || (!isAdmin && order.userId !== userId)) {
-    throw new ServiceError('NOT_FOUND', "We couldn't find that order.");
-  }
-  return clone(order);
+export const getOrdersByUser = async (userId) => (await commerce.request('/api/me/orders', { ownerId: userId })).items;
+export const getOrderById = (orderId, identity) => commerce.request(`/api/me/orders/${encodeURIComponent(orderId)}`, { ownerId: identity?.userId });
+export async function cancelCustomerOrder(orderId, ownerId) {
+  const order = await commerce.request(`/api/me/orders/${encodeURIComponent(orderId)}/cancel`, { method: 'POST', body: {}, ownerId });
+  if (order?.id !== orderId || order.status !== 'Cancelled' || !Array.isArray(order.items)) throw new ServiceError('SERVER_ERROR', 'Cancellation could not be confirmed. Reload the order.');
+  return order;
 }
 
 export const PAYMENT_LABELS = {

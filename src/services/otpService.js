@@ -1,5 +1,5 @@
 // Recovery codes are issued and verified only by Supabase through Express.
-import { ServiceError } from './mockDb';
+import { ServiceError } from './serviceError';
 import { requestRecoveryCode, verifyRecoveryCode } from './recoveryService';
 
 function requireRecovery(purpose) {

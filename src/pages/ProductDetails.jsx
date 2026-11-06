@@ -25,7 +25,7 @@ const VIEW_LABELS = ['Front view', 'Close-up', 'Angled view', 'Full piece'];
 function ProductView({ product }) {
   const navigate = useNavigate();
   const { addItem } = useCart();
-  const { isWishlisted, toggle } = useWishlist();
+  const { isWishlisted, isPending, toggle, loading: wishlistLoading } = useWishlist();
   const [color, setColor] = useState(product.color);
   const [size, setSize] = useState(product.defaultSize);
   const [quantity, setQuantity] = useState(1);
@@ -34,7 +34,8 @@ function ProductView({ product }) {
 
   useEffect(() => {
     let active = true;
-    getRelatedProducts(product, 4).then((list) => active && setRelated(list));
+    getRelatedProducts(product, 4).then((list) => active && setRelated(list))
+      .catch(() => active && setRelated([]));
     return () => {
       active = false;
     };
@@ -300,6 +301,8 @@ function ProductView({ product }) {
               type="button"
               className={`pdp__wish ${wished ? 'is-active' : ''}`}
               onClick={() => toggle(product)}
+              disabled={wishlistLoading || isPending(product.id)}
+              aria-busy={isPending(product.id) || undefined}
               aria-pressed={wished}
               aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'}
             >

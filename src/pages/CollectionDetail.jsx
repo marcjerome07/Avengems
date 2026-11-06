@@ -14,17 +14,21 @@ import './Collections.css';
 export default function CollectionDetail() {
   const { slug } = useParams();
   const [result, setResult] = useState({ slug: null, status: 'loading' });
+  const [retry, setRetry] = useState(0);
   const state = result.slug === slug ? result : { status: 'loading' };
 
   useEffect(() => {
     let active = true;
     getCollectionBySlug(slug)
       .then((data) => active && setResult({ slug, status: 'ready', ...data }))
-      .catch(() => active && setResult({ slug, status: 'missing' }));
+      .catch((error) => active && setResult({ slug, status: error.code === 'NOT_FOUND' ? 'missing' : 'error' }));
     return () => {
       active = false;
     };
-  }, [slug]);
+  }, [slug, retry]);
+
+  if (state.status === 'error') return <PageContainer title="Collection"><p role="alert">Collection data is unavailable.</p>
+    <Button onClick={() => { setResult({ slug, status: 'loading' }); setRetry((value) => value + 1); }}>Retry</Button></PageContainer>;
 
   if (state.status === 'missing') {
     return (

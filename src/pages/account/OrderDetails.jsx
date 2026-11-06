@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Check, PackageSearch } from 'lucide-react';
 import EmptyState from '../../components/ui/EmptyState';
@@ -6,16 +7,19 @@ import Skeleton from '../../components/ui/Skeleton';
 import { StatusBadge } from '../../components/ui/Badge';
 import { TotalsList, MiniItems } from '../../components/cart/OrderSummary';
 import { useAuth } from '../../context/useAuth';
-import { getOrderById, PAYMENT_LABELS } from '../../services/orderService';
+import { getOrderById, getOrdersByUser, PAYMENT_LABELS } from '../../services/orderService';
+import CancelOrderAction from '../../components/account/CancelOrderAction';
+import OrderReference from '../../components/account/OrderReference';
+import { orderReference } from '../../utils/orderReference';
 import useServiceData from '../../hooks/useServiceData';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import { formatDate } from '../../utils/formatPrice';
 
 const FLOW = ['Pending', 'Processing', 'Shipped', 'Delivered'];
 
-function Timeline({ status }) {
+export function Timeline({ status }) {
   if (status === 'Cancelled') {
-    return <p className="order-cancelled">This order was cancelled. Any payment made will be refunded within 5–7 business days.</p>;
+    return <p className="order-cancelled">This order was cancelled. No shipment is being prepared. No real payment or refund is processed in this demonstration.</p>;
   }
   const current = FLOW.indexOf(status);
   return (
@@ -37,8 +41,17 @@ function Timeline({ status }) {
 export default function OrderDetails() {
   const { id } = useParams();
   const { user } = useAuth();
-  useDocumentTitle(`Order ${id}`);
-  const { data: order, loading, error } = useServiceData(() => getOrderById(id, { userId: user.id }), [id, user.id]);
+  const { data: order, loading, error, reload, setData } = useServiceData(() => getOrderById(id, { userId: user.id }), [id, user.id]);
+  useDocumentTitle(`Order ${orderReference(order ?? { id })}`);
+  const [notice, setNotice] = useState('');
+  async function cancelled(updated) {
+    setData(updated); setNotice('Order cancelled.');
+    try {
+      const history = await getOrdersByUser(user.id);
+      const latest = history.find((entry) => entry.id === updated.id);
+      if (latest) setData({ ...latest, canCancel: false });
+    } catch { setNotice('Order cancelled. Order history could not be refreshed; reload to check it.'); }
+  }
 
   const back = (
     <Link to="/account/orders" className="text-link text-link--ink">
@@ -50,7 +63,8 @@ export default function OrderDetails() {
     return (
       <>
         {back}
-        <EmptyState icon={PackageSearch} title="Order not found" message="We couldn't find that order in your account.">
+        <EmptyState icon={PackageSearch} title={error.status === 404 ? 'Order not found' : 'Unable to load order'} message={error.message}>
+          <Button onClick={reload}>Retry order</Button>
           <Button to="/account/orders">View My Orders</Button>
         </EmptyState>
       </>
@@ -72,11 +86,13 @@ export default function OrderDetails() {
       {back}
       <header className="account-head">
         <div>
-          <h1 className="account-title">{order.id}</h1>
+          <h1 className="account-title"><OrderReference order={order} /></h1>
           <p className="account-subtitle">Placed on {formatDate(order.createdAt, { year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
         <StatusBadge status={order.status} />
       </header>
+      {notice && <p role="status">{notice}</p>}
+      <CancelOrderAction key={`${user.id}:${order.id}`} order={order} ownerId={user.id} onCancelled={cancelled} onRefresh={reload} />
 
       <section className="panel" aria-label="Order progress">
         <Timeline status={order.status} />

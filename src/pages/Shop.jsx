@@ -58,6 +58,7 @@ export default function Shop() {
   const error = !loading && results.error;
   const products = results.items;
   const [collections, setCollections] = useState([]);
+  const [collectionError, setCollectionError] = useState(null);
   const [searchText, setSearchText] = useState(filters.q);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -70,11 +71,12 @@ export default function Shop() {
 
   useEffect(() => {
     let active = true;
-    getCollections().then((c) => active && setCollections(c));
+    getCollections().then((c) => { if (active) { setCollections(c); setCollectionError(null); } })
+      .catch((error) => active && setCollectionError(error));
     return () => {
       active = false;
     };
-  }, []);
+  }, [retry]);
 
   // Fetch whenever the URL filters change.
   useEffect(() => {
@@ -138,6 +140,7 @@ export default function Shop() {
 
   return (
     <PageContainer title="Shop">
+      {collectionError && <p role="alert">Collection filters are unavailable. <button type="button" onClick={() => setRetry((value) => value + 1)}>Retry</button></p>}
       <PageHeader title="Shop Avengems" subtitle="Find the piece that matches your stone." />
 
       {/* Quick stone pills */}

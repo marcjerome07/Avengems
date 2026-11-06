@@ -10,6 +10,9 @@ import { getPublicUser, identityFromUser } from './profile.js';
 import { createRegistration } from './registration.js';
 import { createRecovery } from './recovery.js';
 import { notFound, errorHandler } from './errors.js';
+import { createCartQuoteRouter } from './routes/checkout.js';
+import { createAdminRouter } from './routes/admin.js';
+import { createCollectionsRouter } from './routes/collections.js';
 
 const PORT = Number(process.env.PORT) || 3001;
 
@@ -30,19 +33,27 @@ const cookieSessions = createCookieSessions({
 app.disable('x-powered-by');
 const recovery = createRecovery({ createAuthClient: createAuthClientFactory(authConfig), cookieSessions,
   production: process.env.NODE_ENV === 'production' });
-app.use(['/api/auth', '/api/me'], (req, res, next) => {
+app.use(['/api/auth', '/api/me', '/api/cart', '/api/admin'], (req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
 });
 app.use(express.json({ limit: '100kb' }));
+app.use(['/api/me', '/api/admin'], cookieSessions.requireSession);
 
 app.get('/api', (req, res) => {
   res.json({ name: 'Avengems API', health: '/api/health' });
 });
 app.use('/api/health', healthRoutes);
 app.use('/api/products', createProductsRouter(supabase));
+app.use('/api/collections', createCollectionsRouter(supabase));
 app.use('/api/auth', createAuthRouter(cookieSessions, registration, recovery));
+app.use('/api/cart', createCartQuoteRouter(supabase, cookieSessions));
+app.use('/api/admin', createAdminRouter({ client: supabase, cookieSessions, verifyAccessToken: async (accessToken) => {
+  recovery.assertNormalAccessToken(accessToken);
+  return createAccessTokenVerifier(authConfig)(accessToken);
+} }));
 app.use('/api/me', createMeRouter({
+  customerCancellationEnabled: process.env.CUSTOMER_ORDER_CANCELLATION_ENABLED === 'true',
   client: supabase,
   verifyAccessToken: async (accessToken) => {
     recovery.assertNormalAccessToken(accessToken);

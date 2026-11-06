@@ -66,6 +66,7 @@
 }
 
 .confirm__number {
+  overflow-wrap: anywhere;
   font-family: var(--font-serif);
   font-size: var(--fs-lg) !important;
 }

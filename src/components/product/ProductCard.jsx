@@ -18,7 +18,7 @@ const shortMaterial = (m) => (m === '925 Sterling Silver' ? '925 silver' : 'Stai
 export default function ProductCard({ product }) {
   const [quickOpen, setQuickOpen] = useState(false);
   const { addItem } = useCart();
-  const { isWishlisted, toggle } = useWishlist();
+  const { isWishlisted, isPending, toggle, loading: wishlistLoading } = useWishlist();
   const wished = isWishlisted(product.id);
   const outOfStock = product.stock <= 0;
   const href = `/product/${product.slug}`;
@@ -40,6 +40,8 @@ export default function ProductCard({ product }) {
           type="button"
           className={`product-card__heart ${wished ? 'is-active' : ''}`}
           onClick={() => toggle(product)}
+          disabled={wishlistLoading || isPending(product.id)}
+          aria-busy={isPending(product.id) || undefined}
           aria-pressed={wished}
           aria-label={wished ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`}
         >

@@ -1,0 +1,27 @@
+{
+  "startedAt": "2026-11-06T21:05:11.488Z",
+  "environment": "disposable native loopback PostgreSQL",
+  "database": "avengems_orders_stage",
+  "dataDirectory": "C:\\Users\\User\\AppData\\Local\\Temp\\avengems-pg-stage-LI0tYm\\data",
+  "sharedSupabaseContacted": false,
+  "modelLimitations": [
+    "Minimal disposable auth.users FK/trigger fixture, not Supabase Auth",
+    "Local roles/grants model; actual Supabase grants, PostgREST and HTTP/email flows remain unverified"
+  ],
+  "artifacts": {
+    "checkout-orders.sql": "13F0BF3381B2A5CCA3FE450FF7CEE5FCA1E78539AC49E27E24494685862A09B5",
+    "admin-order-cancel.sql": "3D35DD62DCA2A83DF8886A6B2F8E40E48844A70C821BEB2F039610B260D553A7"
+  },
+  "tests": [],
+  "cleanup": "STOP FAILED: PostgreSQL tool exited 1",
+  "port": 60025,
+  "postgresVersion": "postgres (PostgreSQL) 16.13",
+  "status": "FAIL",
+  "failure": {
+    "sqlState": null,
+    "message": "PostgreSQL tool exited 2"
+  },
+  "finishedAt": "2026-11-06T21:06:36.441Z",
+  "passed": 0,
+  "failed": 0
+}

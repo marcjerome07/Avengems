@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
+import OrderReference from '../../components/account/OrderReference';
 import { Wallet, Package, Gem, Users, ArrowRight } from 'lucide-react';
 import AdminHeader from '../../components/admin/AdminHeader';
+import AdminDataState from '../../components/admin/AdminDataState';
 import { SalesLineChart, StatusDonut } from '../../components/admin/Charts';
 import StatCard from '../../components/ui/StatCard';
 import Skeleton, { TableSkeleton } from '../../components/ui/Skeleton';
@@ -8,29 +10,29 @@ import { StatusBadge } from '../../components/ui/Badge';
 import GemVisual from '../../components/product/GemVisual';
 import useServiceData from '../../hooks/useServiceData';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
-import { getDashboardStats, getSalesOverview, getOrderStatusBreakdown, getRecentOrders, getBestSellers } from '../../services/adminService';
+import { getDashboardData } from '../../services/adminService';
 import { formatDate, formatPrice } from '../../utils/formatPrice';
 import { STONE_THEME } from '../../utils/stoneTheme';
 
 export default function Dashboard() {
   useDocumentTitle('Admin Dashboard');
-  const stats = useServiceData(getDashboardStats);
-  const sales = useServiceData(() => getSalesOverview(6));
-  const status = useServiceData(getOrderStatusBreakdown);
-  const recent = useServiceData(() => getRecentOrders(6));
-  const best = useServiceData(() => getBestSellers(5));
-  const s = stats.data;
+  const { data, error, reload } = useServiceData(getDashboardData);
+  const sales = { data: data?.sales }, status = { data: data?.status }, recent = { data: data?.recent }, best = { data: data?.best };
+  const s = data?.stats;
+  if (error) return <><AdminHeader title="Dashboard" /><AdminDataState error={error} onRetry={reload} /></>;
 
   return (
     <>
       <AdminHeader title="Dashboard" subtitle="A quick look at how Avengems is doing." />
+      <AdminDataState error={error} onRetry={reload} />
+      <p className="admin-note">Demo order value excludes cancellations and includes shipping. No real payments are collected. Monthly reports use UTC.</p>
 
       <div className="stat-grid">
         <StatCard
           label="Total Sales"
           value={s ? formatPrice(s.totalSales) : '–'}
           icon={Wallet}
-          hint="Excludes cancelled orders"
+          hint="Demo order value; excludes cancellations"
           accent={STONE_THEME.mind.base}
         />
         <StatCard label="Total Orders" value={s ? s.totalOrders : '–'} icon={Package} accent={STONE_THEME.space.base} />
@@ -86,7 +88,7 @@ export default function Dashboard() {
                   {recent.data.map((o) => (
                     <tr key={o.id}>
                       <td data-label="Order" className="strong">
-                        {o.id}
+                        <OrderReference order={o} />
                       </td>
                       <td data-label="Customer">{o.customer.name}</td>
                       <td data-label="Date">{formatDate(o.createdAt)}</td>
@@ -104,6 +106,7 @@ export default function Dashboard() {
           ) : (
             <TableSkeleton rows={5} cols={5} />
           )}
+          {recent.data?.length === 0 && <p>No persisted orders yet.</p>}
         </section>
 
         <section className="panel" aria-labelledby="best-title">
@@ -136,6 +139,7 @@ export default function Dashboard() {
           ) : (
             <Skeleton height={260} />
           )}
+          {best.data?.length === 0 && <p>No best sellers yet.</p>}
         </section>
       </div>
     </>
