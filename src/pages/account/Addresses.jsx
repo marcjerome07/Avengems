@@ -7,6 +7,7 @@ import Badge from '../../components/ui/Badge';
 import EmptyState from '../../components/ui/EmptyState';
 import Skeleton from '../../components/ui/Skeleton';
 import { useAuth } from '../../context/useAuth';
+import { useConfirm } from '../../context/useConfirm';
 import { useToast } from '../../context/useToast';
 import { getAddresses, saveAddress, deleteAddress, setDefaultAddress } from '../../services/authService';
 import useServiceData from '../../hooks/useServiceData';
@@ -88,9 +89,9 @@ export default function Addresses() {
   useDocumentTitle('Addresses');
   const { user } = useAuth();
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const { data, loading, error, reload, setData } = useServiceData(() => getAddresses(user.id), [user.id]);
   const [editing, setEditing] = useState(null); // address object or EMPTY for new
-  const [confirmDelete, setConfirmDelete] = useState(null);
   const [busy, setBusy] = useState(false);
   const addresses = data ?? [];
 
@@ -114,9 +115,18 @@ export default function Addresses() {
     if (ok) setEditing(null);
   }
 
-  async function handleDelete() {
-    const ok = await run(() => deleteAddress(user.id, confirmDelete.id), 'Address deleted.');
-    if (ok) setConfirmDelete(null);
+  function requestDelete(address) {
+    confirm({
+      title: 'Delete address?',
+      message: (
+        <p className="muted">
+          Remove <strong>{address.label}</strong> ({address.address})? This can&apos;t be undone.
+        </p>
+      ),
+      confirmLabel: 'Delete',
+      danger: true,
+      onConfirm: () => run(() => deleteAddress(user.id, address.id), 'Address deleted.'),
+    });
   }
 
   return (
@@ -166,7 +176,7 @@ export default function Addresses() {
                   variant="ghost"
                   icon={Trash2}
                   disabled={busy}
-                  onClick={() => setConfirmDelete(a)}
+                  onClick={() => requestDelete(a)}
                   aria-label={`Delete ${a.label} address`}
                 >
                   Delete
@@ -186,28 +196,6 @@ export default function Addresses() {
 
       <Modal open={Boolean(editing)} onClose={() => setEditing(null)} title={editing?.id ? 'Edit address' : 'Add address'} size="md">
         {editing && <AddressForm initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} saving={busy} />}
-      </Modal>
-
-      <Modal
-        open={Boolean(confirmDelete)}
-        onClose={() => setConfirmDelete(null)}
-        title="Delete address?"
-        size="sm"
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setConfirmDelete(null)}>
-              Cancel
-            </Button>
-            <Button variant="danger" loading={busy} onClick={handleDelete}>
-              Delete
-            </Button>
-          </>
-        }
-      >
-        <p className="muted">
-          Remove <strong>{confirmDelete?.label}</strong> ({confirmDelete?.address})? This can&apos;t be undone.
-        </p>
-      </Modal>
-    </>
+      </Modal>    </>
   );
 }

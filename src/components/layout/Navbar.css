@@ -75,6 +75,16 @@
   gap: clamp(4px, 2vw, 28px);
 }
 
+/* Same width as the three icons, shown while the session is being checked */
+.navbar__actions--pending {
+  width: calc(3 * 44px + 2 * clamp(4px, 2vw, 28px));
+  height: 44px;
+}
+
+.navbar__actions--guest {
+  gap: var(--space-2);
+}
+
 .nav-icon {
   position: relative;
   width: 44px;
@@ -223,8 +233,25 @@
     margin-right: -10px;
   }
 
+  /* Search + cart only; the account icon is hidden on mobile */
+  .navbar__actions--pending {
+    width: 88px;
+  }
+
+  .navbar__actions--guest {
+    gap: var(--space-2);
+    margin-right: 0;
+  }
+
   .announcement {
     font-size: var(--fs-xs);
     padding-block: 9px;
+  }
+}
+
+/* Small phones: only "Log in" fits beside the burger and logo; sign up stays in the mobile menu */
+@media (max-width: 479px) {
+  .navbar__signup {
+    display: none;
   }
 }

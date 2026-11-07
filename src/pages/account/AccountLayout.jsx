@@ -2,7 +2,9 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { LayoutGrid, Package, Heart, UserRound, MapPin, ShieldCheck, LogOut } from 'lucide-react';
 import PageContainer from '../../components/layout/PageContainer';
 import { useAuth } from '../../context/useAuth';
+import { useConfirm } from '../../context/useConfirm';
 import { useToast } from '../../context/useToast';
+import { LOGOUT_CONFIRM } from '../../utils/confirmMessages';
 import './Account.css';
 
 const LINKS = [
@@ -17,9 +19,11 @@ const LINKS = [
 export default function AccountLayout() {
   const { user, logout } = useAuth();
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const navigate = useNavigate();
 
   async function handleLogout() {
+    if (!(await confirm(LOGOUT_CONFIRM))) return;
     try {
       await logout();
       showToast('You have been logged out.', { type: 'info' });

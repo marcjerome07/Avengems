@@ -11,6 +11,7 @@ import Input from '../../components/ui/Input';
 import EmptyState from '../../components/ui/EmptyState';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { StatusBadge } from '../../components/ui/Badge';
+import { useConfirm } from '../../context/useConfirm';
 import { useToast } from '../../context/useToast';
 import useServiceData from '../../hooks/useServiceData';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
@@ -21,12 +22,12 @@ import { formatDate, formatPrice } from '../../utils/formatPrice';
 export default function AdminOrders() {
   useDocumentTitle('Admin · Orders');
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const { data, loading, error, reload, setData } = useServiceData(() => getAllOrders());
   const [detail, setDetail] = useState(null);
   const [detailError, setDetailError] = useState(null);
   const detailRequest = useRef(0);
   const [detailId, setDetailId] = useState(null);
-  const [cancelling, setCancelling] = useState(null);
   const [status, setStatus] = useState('All');
   const [query, setQuery] = useState('');
   const [savingId, setSavingId] = useState(null);
@@ -41,6 +42,9 @@ export default function AdminOrders() {
   }, [orders, status, query]);
 
   async function changeStatus(order, next) {
+    // The select is controlled by order.status, so it stays on the old value if this is cancelled.
+    const ok = await confirm({ title: 'Update order status?', message: `Mark ${orderReference(order)} as ${next}?`, confirmLabel: `Mark as ${next}` });
+    if (!ok) return;
     setSavingId(order.id);
     try {
       const updated = await updateOrderStatus(order.id, next, order.status);
@@ -60,15 +64,23 @@ export default function AdminOrders() {
     try { const order = await getAdminOrder(id); if (request === detailRequest.current) setDetail(order); }
     catch (err) { if (request === detailRequest.current) setDetailError(err); }
   }
-  async function confirmCancellation() {
-    const order = cancelling;
-    setSavingId(order.id);
-    try {
-      const updated = await cancelOrder(order.id);
-      setData((list) => list.map((value) => value.id === updated.id ? updated : value));
-      setCancelling(null); showToast(`${orderReference(order)} cancelled and inventory restored.`, { type: 'success' });
-    } catch (err) { showToast(err.message, { type: 'error' }); reload(); }
-    finally { setSavingId(null); }
+  function requestCancellation(order) {
+    confirm({
+      title: 'Cancel and restock order?',
+      message: 'Cancellation and inventory restoration must complete together. This action requires the approved atomic cancellation SQL function.',
+      confirmLabel: 'Cancel and restock',
+      cancelLabel: 'Keep order',
+      danger: true,
+      onConfirm: async () => {
+        setSavingId(order.id);
+        try {
+          const updated = await cancelOrder(order.id);
+          setData((list) => list.map((value) => value.id === updated.id ? updated : value));
+          showToast(`${orderReference(order)} cancelled and inventory restored.`, { type: 'success' });
+        } catch (err) { showToast(err.message, { type: 'error' }); reload(); return false; }
+        finally { setSavingId(null); }
+      },
+    });
   }
 
   return (
@@ -162,7 +174,7 @@ export default function AdminOrders() {
                         </option>
                       ))}
                     </select>
-                    {['Pending', 'Processing'].includes(o.status) && <Button size="sm" variant="ghost" disabled={Boolean(savingId)} onClick={() => setCancelling(o)}>Cancel order</Button>}
+                    {['Pending', 'Processing'].includes(o.status) && <Button size="sm" variant="ghost" disabled={Boolean(savingId)} onClick={() => requestCancellation(o)}>Cancel order</Button>}
                   </td>
                 </tr>
               ))}
@@ -177,11 +189,6 @@ export default function AdminOrders() {
         {detail && <><p>{detail.customer.name} · {detail.customer.email} · {detail.customer.phone}</p>
           <p>{detail.shipping.address}, {detail.shipping.city}, {detail.shipping.province} {detail.shipping.postalCode}</p>
           <p>{detail.status} · {PAYMENT_LABELS[detail.paymentMethod]} (demo payment)</p><MiniItems items={detail.items} /><TotalsList totals={detail} /></>}
-      </Modal>
-      <Modal open={Boolean(cancelling)} onClose={() => setCancelling(null)} title="Cancel and restock order?"
-        footer={<><Button onClick={() => setCancelling(null)} disabled={Boolean(savingId)}>Keep order</Button><Button variant="danger" loading={Boolean(savingId)} onClick={confirmCancellation}>Cancel and restock</Button></>}>
-        <p>Cancellation and inventory restoration must complete together. This action requires the approved atomic cancellation SQL function.</p>
-      </Modal>
-    </>
+      </Modal>    </>
   );
 }

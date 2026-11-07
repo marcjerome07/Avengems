@@ -21,6 +21,7 @@ const { default: Confirmation } = await vite.ssrLoadModule('/src/pages/OrderConf
 const { AuthContext } = await vite.ssrLoadModule('/src/context/useAuth.js');
 const { CartContext } = await vite.ssrLoadModule('/src/context/useCart.js');
 const { ToastContext } = await vite.ssrLoadModule('/src/context/useToast.js');
+const { ConfirmContext } = await vite.ssrLoadModule('/src/context/useConfirm.js');
 const key = '33333333-3333-4333-8333-333333333333';
 const user = { id: 'alice', name: 'Customer Name', email: 'customer@example.test', role: 'customer', verified: true };
 const item = { lineId: 'p-01|Purple|US 5', productId: 'p-01', name: 'Test Ring', slug: 'test-ring', color: 'Purple', size: 'US 5', stone: 'power', quantity: 2, unitPrice: 1, basePrice: 1, customizationFee: 999 };
@@ -160,7 +161,7 @@ test('quote feedback separates loading, stock errors/retry, and authoritative to
 
 function renderPage(Page, cart) {
   return renderToString(h(MemoryRouter, null, h(AuthContext.Provider, { value: { user } },
-    h(ToastContext.Provider, { value: { showToast() {} } }, h(CartContext.Provider, { value: cart }, h(Page))))));
+    h(ToastContext.Provider, { value: { showToast() {} } }, h(CartContext.Provider, { value: cart }, h(ConfirmContext.Provider, { value: async () => true }, h(Page)))))));
 }
 test('Cart and Checkout wait for server quotes instead of presenting browser totals as authoritative', (t) => {
   storage(t);

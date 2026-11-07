@@ -1,18 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { Search, User, ShoppingBag, Menu, LayoutDashboard, Package, UserRound, Heart, LogOut } from 'lucide-react';
+import Button from '../ui/Button';
 import Logo from './Logo';
 import MobileMenu from './MobileMenu';
 import SearchOverlay from './SearchOverlay';
 import { NAV_LINKS } from './navLinks';
 import { useAuth } from '../../context/useAuth';
 import { useCart } from '../../context/useCart';
+import { useConfirm } from '../../context/useConfirm';
 import { useToast } from '../../context/useToast';
+import { LOGOUT_CONFIRM } from '../../utils/confirmMessages';
 import './Navbar.css';
 
 function AccountMenu() {
   const { user, isAdmin, logout } = useAuth();
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
@@ -38,6 +42,7 @@ function AccountMenu() {
 
   async function handleLogout() {
     setOpen(false);
+    if (!(await confirm(LOGOUT_CONFIRM))) return;
     try {
       await logout();
       showToast('You have been logged out.', { type: 'info' });
@@ -45,14 +50,6 @@ function AccountMenu() {
     } catch (error) {
       showToast(error.message, { type: 'error', duration: 8000 });
     }
-  }
-
-  if (!user) {
-    return (
-      <Link to="/login" className="nav-icon" aria-label="Log in or create an account">
-        <User size={21} strokeWidth={1.4} />
-      </Link>
-    );
   }
 
   const firstName = user.name?.split(' ')[0] ?? 'there';
@@ -114,6 +111,7 @@ function AccountMenu() {
 }
 
 export default function Navbar() {
+  const { user, loading } = useAuth();
   const { itemCount } = useCart();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -144,22 +142,36 @@ export default function Navbar() {
             ))}
           </nav>
 
-          <div className="navbar__actions">
-            <button type="button" className="nav-icon" aria-label="Search products" onClick={() => setSearchOpen(true)}>
-              <Search size={21} strokeWidth={1.4} />
-            </button>
-            <div className="navbar__account">
-              <AccountMenu />
+          {loading ? (
+            // Holds the icons' space while the session is checked, so the buttons don't flash first.
+            <div className="navbar__actions navbar__actions--pending" aria-hidden="true" />
+          ) : !user ? (
+            <div className="navbar__actions navbar__actions--guest">
+              <Button to="/login" variant="ghost" size="sm">
+                Log in
+              </Button>
+              <Button to="/signup" variant="primary" size="sm" className="navbar__signup">
+                Sign up
+              </Button>
             </div>
-            <Link to="/cart" className="nav-icon" aria-label={`Shopping bag, ${itemCount} ${itemCount === 1 ? 'item' : 'items'}`}>
-              <ShoppingBag size={21} strokeWidth={1.4} />
-              {itemCount > 0 && (
-                <span className="nav-icon__badge" aria-hidden="true">
-                  {itemCount > 99 ? '99+' : itemCount}
-                </span>
-              )}
-            </Link>
-          </div>
+          ) : (
+            <div className="navbar__actions">
+              <button type="button" className="nav-icon" aria-label="Search products" onClick={() => setSearchOpen(true)}>
+                <Search size={21} strokeWidth={1.4} />
+              </button>
+              <div className="navbar__account">
+                <AccountMenu />
+              </div>
+              <Link to="/cart" className="nav-icon" aria-label={`Shopping bag, ${itemCount} ${itemCount === 1 ? 'item' : 'items'}`}>
+                <ShoppingBag size={21} strokeWidth={1.4} />
+                {itemCount > 0 && (
+                  <span className="nav-icon__badge" aria-hidden="true">
+                    {itemCount > 99 ? '99+' : itemCount}
+                  </span>
+                )}
+              </Link>
+            </div>
+          )}
         </div>
       </header>
 

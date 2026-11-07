@@ -11,6 +11,7 @@ import Badge from '../../components/ui/Badge';
 import EmptyState from '../../components/ui/EmptyState';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import ProductMedia from '../../components/product/ProductMedia';
+import { useConfirm } from '../../context/useConfirm';
 import { useToast } from '../../context/useToast';
 import useServiceData from '../../hooks/useServiceData';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
@@ -190,13 +191,13 @@ function ProductForm({ initial, collections, onCancel, onSave, saving }) {
 export default function Products() {
   useDocumentTitle('Admin · Products');
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const { data, loading, error, reload } = useServiceData(() => getProducts().then((r) => r.items));
   const { data: collections, error: collectionError, reload: reloadCollections } = useServiceData(getCollections);
   const [query, setQuery] = useState('');
   const [type, setType] = useState('');
   const [stone, setStone] = useState('');
   const [editing, setEditing] = useState(null);
-  const [deleting, setDeleting] = useState(null);
   const [busy, setBusy] = useState(false);
 
   const rows = useMemo(() => {
@@ -227,18 +228,30 @@ export default function Products() {
     }
   }
 
-  async function handleDelete() {
-    setBusy(true);
-    try {
-      await deleteProduct(deleting.id);
-      showToast(`${deleting.name} archived.`, { type: 'success' });
-      setDeleting(null);
-      reload();
-    } catch (err) {
-      showToast(err.message, { type: 'error' });
-    } finally {
-      setBusy(false);
-    }
+  function requestArchive(product) {
+    confirm({
+      title: 'Archive product?',
+      message: (
+        <p className="muted">
+          <strong>{product.name}</strong> will be hidden from the customer catalog. Historical orders are preserved.
+        </p>
+      ),
+      confirmLabel: 'Archive',
+      danger: true,
+      onConfirm: async () => {
+        setBusy(true);
+        try {
+          await deleteProduct(product.id);
+          showToast(`${product.name} archived.`, { type: 'success' });
+          reload();
+        } catch (err) {
+          showToast(err.message, { type: 'error' });
+          return false;
+        } finally {
+          setBusy(false);
+        }
+      },
+    });
   }
 
   return (
@@ -342,7 +355,7 @@ export default function Products() {
                       <button
                         type="button"
                         className="icon-btn icon-btn--danger"
-                        onClick={() => setDeleting(p)}
+                        onClick={() => requestArchive(p)}
                         aria-label={`Archive ${p.name}`}
                         disabled={busy || p.archived}
                       >
@@ -369,28 +382,6 @@ export default function Products() {
             saving={busy}
           />
         )}
-      </Modal>
-
-      <Modal
-        open={Boolean(deleting)}
-        onClose={() => setDeleting(null)}
-        title="Archive product?"
-        size="sm"
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setDeleting(null)}>
-              Cancel
-            </Button>
-            <Button variant="danger" loading={busy} onClick={handleDelete}>
-              Archive
-            </Button>
-          </>
-        }
-      >
-        <p className="muted">
-          <strong>{deleting?.name}</strong> will be hidden from the customer catalog. Historical orders are preserved.
-        </p>
-      </Modal>
-    </>
+      </Modal>    </>
   );
 }

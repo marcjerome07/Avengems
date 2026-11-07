@@ -13,6 +13,7 @@ import ProductMedia from '../components/product/ProductMedia';
 import ColorSwatch from '../components/product/ColorSwatch';
 import ProductGrid from '../components/product/ProductGrid';
 import { useCart } from '../context/useCart';
+import useAddToCart from '../hooks/useAddToCart';
 import { useWishlist } from '../context/useWishlist';
 import { getProductBySlug, getRelatedProducts, getProductInfo, CUSTOMIZATION_FEE_RANGE } from '../services/productService';
 import { formatPrice, formatPriceShort } from '../utils/formatPrice';
@@ -25,6 +26,7 @@ const VIEW_LABELS = ['Front view', 'Close-up', 'Angled view', 'Full piece'];
 function ProductView({ product }) {
   const navigate = useNavigate();
   const { addItem } = useCart();
+  const addToCart = useAddToCart();
   const { isWishlisted, isPending, toggle, loading: wishlistLoading } = useWishlist();
   const [color, setColor] = useState(product.color);
   const [size, setSize] = useState(product.defaultSize);
@@ -52,7 +54,7 @@ function ProductView({ product }) {
   const views = photoCount && stone === product.stone ? product.images.map((_, i) => i) : [0, 1, 2, 3];
 
   function handleAdd() {
-    return addItem(product, { color, size, quantity });
+    return addToCart(product, { color, size, quantity });
   }
 
   function handleBuyNow() {

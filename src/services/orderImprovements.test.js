@@ -13,6 +13,7 @@ after(() => vite.close());
 const service = await vite.ssrLoadModule('/src/services/orderService.js');
 const { authSession } = await vite.ssrLoadModule('/src/services/authSession.js');
 const { default: CancelAction } = await vite.ssrLoadModule('/src/components/account/CancelOrderAction.jsx');
+const { ConfirmContext } = await vite.ssrLoadModule('/src/context/useConfirm.js');
 const { default: OrdersTable } = await vite.ssrLoadModule('/src/components/account/OrdersTable.jsx');
 const { default: Reference } = await vite.ssrLoadModule('/src/components/account/OrderReference.jsx');
 const { orderReference } = await vite.ssrLoadModule('/src/utils/orderReference.js');
@@ -61,7 +62,7 @@ test('customer cancellation fails visibly for disabled/conflict/network and malf
 });
 
 test('customer cancellation action is enabled only for approved Pending/Processing orders', () => {
-  const render = (value) => renderToString(h(MemoryRouter, null, h(CancelAction, { order: value, ownerId: user.id, onCancelled() {} })));
+  const render = (value) => renderToString(h(MemoryRouter, null, h(ConfirmContext.Provider, { value: async () => true }, h(CancelAction, { order: value, ownerId: user.id, onCancelled() {} }))));
   for (const status of ['Pending', 'Processing']) {
     const html = render({ ...order, status }); assert.match(html, /Cancel Order/); assert.doesNotMatch(html, /disabled=""/);
     const disabled = render({ ...order, status, canCancel: false }); assert.match(disabled, /disabled=""/); assert.match(disabled, /unavailable/);

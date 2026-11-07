@@ -4,6 +4,7 @@ import AdminDataState from '../../components/admin/AdminDataState';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import Skeleton from '../../components/ui/Skeleton';
+import { useConfirm } from '../../context/useConfirm';
 import { useToast } from '../../context/useToast';
 import useServiceData from '../../hooks/useServiceData';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
@@ -12,6 +13,7 @@ import { runValidators, validateEmail, validateRequired } from '../../utils/vali
 
 function SettingsForm({ initial }) {
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const [values, setValues] = useState({
     storeName: initial.storeName,
     contactEmail: initial.contactEmail,
@@ -37,6 +39,12 @@ function SettingsForm({ initial }) {
     });
     setErrors(result);
     if (Object.keys(result).length) return;
+    const ok = await confirm({
+      title: 'Save store settings?',
+      message: 'Changes apply to all customers immediately.',
+      confirmLabel: 'Save settings',
+    });
+    if (!ok) return;
     setSaving(true);
     try {
       await saveSettings({

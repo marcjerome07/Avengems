@@ -9,6 +9,7 @@ import ProductMedia from '../components/product/ProductMedia';
 import ProductGrid from '../components/product/ProductGrid';
 import { QuoteTotals } from '../components/cart/OrderSummary';
 import { useCart } from '../context/useCart';
+import { useConfirm } from '../context/useConfirm';
 import { getSuggestedProducts } from '../services/productService';
 import { formatPrice } from '../utils/formatPrice';
 import { stoneVar } from '../utils/stoneTheme';
@@ -54,7 +55,7 @@ function CartLine({ item, onQuantity, onRemove, priced }) {
         <button
           type="button"
           className="cart-line__remove"
-          onClick={() => onRemove(item.lineId)}
+          onClick={() => onRemove(item)}
           aria-label={`Remove ${item.name} from cart`}
         >
           <Trash2 size={16} strokeWidth={1.5} /> Remove
@@ -68,6 +69,7 @@ export default function Cart() {
   const { items, totals, quotedItems, quoteLoading, quoteError, reloadQuote, itemCount, updateQuantity, removeItem } = useCart();
   const ready = Boolean(totals) && !quoteLoading && !quoteError;
   const [suggestions, setSuggestions] = useState(null);
+  const confirm = useConfirm();
   const stonesInCart = useMemo(() => [...new Set(items.map((i) => i.stone))].sort().join(','), [items]);
 
   useEffect(() => {
@@ -79,6 +81,16 @@ export default function Cart() {
       active = false;
     };
   }, [stonesInCart]);
+
+  async function handleRemove(item) {
+    const ok = await confirm({
+      title: 'Remove item?',
+      message: `Remove ${item.name} from your bag?`,
+      confirmLabel: 'Remove',
+      danger: true,
+    });
+    if (ok) removeItem(item.lineId);
+  }
 
   if (!items.length) {
     return (
@@ -104,7 +116,7 @@ export default function Cart() {
       <div className="cart-layout">
         <ul className="cart-lines" role="list" aria-label="Cart items">
           {(quotedItems ?? items).map((item) => (
-            <CartLine key={item.lineId} item={item} priced={ready} onQuantity={updateQuantity} onRemove={removeItem} />
+            <CartLine key={item.lineId} item={item} priced={ready} onQuantity={updateQuantity} onRemove={handleRemove} />
           ))}
         </ul>
 

@@ -16,6 +16,7 @@ const { WishlistProvider } = await vite.ssrLoadModule('/src/context/WishlistCont
 const { WishlistContext, useWishlist } = await vite.ssrLoadModule('/src/context/useWishlist.js');
 const { AuthContext } = await vite.ssrLoadModule('/src/context/useAuth.js');
 const { ToastContext } = await vite.ssrLoadModule('/src/context/useToast.js');
+const { ConfirmContext } = await vite.ssrLoadModule('/src/context/useConfirm.js');
 const { CartContext } = await vite.ssrLoadModule('/src/context/useCart.js');
 const { default: Wishlist, WishlistLoadState } = await vite.ssrLoadModule('/src/pages/account/Wishlist.jsx');
 const { default: ProductCard } = await vite.ssrLoadModule('/src/components/product/ProductCard.jsx');
@@ -290,7 +291,7 @@ function renderWithWishlist(element, value) {
   return renderToString(h(MemoryRouter, null,
     h(ToastContext.Provider, { value: { showToast() {} } },
       h(CartContext.Provider, { value: { addItem: () => true } },
-        h(WishlistContext.Provider, { value }, element)))));
+        h(WishlistContext.Provider, { value }, h(ConfirmContext.Provider, { value: async () => true }, element))))));
 }
 test('wishlist page renders loading, empty, error/retry and populated states', () => {
   const base = { items: [], loading: false, error: null, isPending: () => false, reload() {}, remove: async () => true };

@@ -22,6 +22,7 @@ const { default: Analytics } = await vite.ssrLoadModule('/src/pages/admin/Analyt
 const { default: Customers, CustomerResults } = await vite.ssrLoadModule('/src/pages/admin/Customers.jsx');
 const { default: Security } = await vite.ssrLoadModule('/src/pages/account/Security.jsx');
 const { ToastContext } = await vite.ssrLoadModule('/src/context/useToast.js');
+const { ConfirmContext } = await vite.ssrLoadModule('/src/context/useConfirm.js');
 const user = { id: 'verified-admin', name: 'Administrator', email: 'admin@example.test', role: 'admin', verified: true };
 const csrf = () => ({ url: '/api/auth/csrf', body: { csrfToken: 'fabricated-csrf' } });
 function transport(t, responses) {
@@ -156,7 +157,7 @@ test('uncertain admin writes are not replayed and session switches stop queued w
 });
 
 test('admin loading/error presentation and actual pages render without seeded mock records', () => {
-  const render = (Page) => renderToString(h(MemoryRouter, null, h(ToastContext.Provider, { value: { showToast() {} } }, h(Page))));
+  const render = (Page) => renderToString(h(MemoryRouter, null, h(ToastContext.Provider, { value: { showToast() {} } }, h(ConfirmContext.Provider, { value: async () => true }, h(Page)))));
   const error = renderToString(h(AdminDataState, { error: new Error('Safe loading failure.'), onRetry() {} }));
   assert.match(error, /role="alert"/); assert.match(error, /Retry loading data/);
   assert.match(render(Orders), /Orders/); assert.match(render(Products), /Products/); assert.match(render(Settings), /Settings/);

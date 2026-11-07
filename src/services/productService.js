@@ -1,5 +1,5 @@
 // All catalog and admin product operations use the API. Packages and care/specification copy are static content.
-import { SIZES } from '../data/products';
+import { SIZES, withLocalImages } from '../data/products';
 import { packages } from '../data/packages';
 import { specifications, materialNotes, packagingInfo, shippingInfo, careInfo } from '../data/productInfo';
 import { config } from '../data/config';
@@ -50,7 +50,7 @@ async function requestProducts(url) {
   return data;
 }
 
-export const getProductBySlug = (slug) => requestProducts(`/api/products/${encodeURIComponent(slug)}`);
+export const getProductBySlug = async (slug) => withLocalImages(await requestProducts(`/api/products/${encodeURIComponent(slug)}`));
 export const getProductsByIds = async (ids = []) => ids.length ? (await requestProducts(`/api/products?ids=${encodeURIComponent(ids.join(','))}`)).items : [];
 export const getFeaturedProducts = async (limit = 8) => (await getProducts({ sort: 'featured' })).items.filter((product) => product.isFeatured).slice(0, limit);
 export async function getRelatedProducts(product, limit = 4) {

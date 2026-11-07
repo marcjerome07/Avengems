@@ -3,7 +3,9 @@ import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Gem, Package, Users, UsersRound, ChartColumn, Settings, LogOut, Store, Menu, X } from 'lucide-react';
 import Logo from '../../components/layout/Logo';
 import { useAuth } from '../../context/useAuth';
+import { useConfirm } from '../../context/useConfirm';
 import { useToast } from '../../context/useToast';
+import { LOGOUT_CONFIRM } from '../../utils/confirmMessages';
 import { DIAMOND_STYLES } from '../../utils/stoneTheme';
 import './Admin.css';
 
@@ -22,6 +24,7 @@ const LINKS = [
 export default function AdminLayout() {
   const { user, logout } = useAuth();
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
@@ -33,6 +36,8 @@ export default function AdminLayout() {
   }, [open]);
 
   async function handleLogout() {
+    setOpen(false);
+    if (!(await confirm(LOGOUT_CONFIRM))) return;
     try {
       await logout();
       showToast('You have been logged out.', { type: 'info' });

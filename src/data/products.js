@@ -1,6 +1,6 @@
 // Avengems product catalog: one ring, necklace, bracelet, and pair of earrings per stone.
 //
-// IMAGES: every product has `images: []`. Add real photo URLs (e.g. '/images/power-ring-1.jpg'
+// IMAGES: products default to `images: []`. Set `images` to photo URLs (e.g. '/images/power-stone-ring.jpg'
 // placed in /public/images) to show photos. Empty arrays fall back to the <GemVisual /> placeholder.
 
 const STONES = {
@@ -67,6 +67,7 @@ export const products = [
     customizable: { size: true, color: true },
     customizationFee: 250,
     addedAt: '2026-04-02',
+    images: ['/images/power-stone-ring.jpg'],
     shortDescription: 'A softly faceted amethyst on a slim sterling silver band, made for everyday confidence.',
   }),
   make({
@@ -154,6 +155,7 @@ export const products = [
     customizable: { size: false, color: true },
     customizationFee: 200,
     addedAt: '2026-01-28',
+    images: ['/images/space-stone-necklace.jpg'],
     shortDescription: 'Our best-loved pendant: an octagon-cut blue topaz suspended on sterling silver.',
   }),
   make({
@@ -241,6 +243,7 @@ export const products = [
     customizable: { size: true, color: false },
     customizationFee: 100,
     addedAt: '2026-01-16',
+    images: ['/images/reality-stone-bracelet.jpg'],
     shortDescription: 'A garnet-studded chain bracelet in stainless steel. Stacks beautifully with gold or silver.',
   }),
   make({
@@ -294,6 +297,7 @@ export const products = [
     customizable: { size: false, color: false },
     customizationFee: 0,
     addedAt: '2026-02-25',
+    images: ['/images/soul-stone-necklace.jpg'],
     shortDescription: 'A glowing orange sapphire pendant on sterling silver, like a little sunset you can wear.',
   }),
   make({
@@ -398,6 +402,7 @@ export const products = [
     customizable: { size: false, color: true },
     customizationFee: 200,
     addedAt: '2026-09-28',
+    images: ['/images/time-stone-earrings.jpg'],
     shortDescription: 'Peridot drops framed in sterling silver for a timeless, polished look.',
   }),
 
@@ -417,6 +422,7 @@ export const products = [
     customizable: { size: true, color: false },
     customizationFee: 100,
     addedAt: '2026-02-14',
+    images: ['/images/mind-stone-ring.jpg'],
     shortDescription: 'A honey-gold citrine on a polished stainless steel band. Bright and focused.',
   }),
   make({
@@ -471,3 +477,13 @@ export const products = [
     shortDescription: 'Golden citrine studs in stainless steel. A small, cheerful spark of color.',
   }),
 ];
+
+const localBySlug = new Map(products.map((p) => [p.slug, p]));
+
+// Until the photos are saved in the database's `images` column, fill them in from this catalog.
+// Skipped when the item's stone differs (e.g. a cart line with a changed color).
+export function withLocalImages(item) {
+  if (!item || item.images?.length) return item;
+  const local = localBySlug.get(item.slug);
+  return local?.images.length && local.stone === item.stone ? { ...item, images: local.images } : item;
+}

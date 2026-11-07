@@ -7,7 +7,8 @@ import Badge from '../../components/ui/Badge';
 import { ProductGridSkeleton } from '../../components/ui/Skeleton';
 import ProductMedia from '../../components/product/ProductMedia';
 import { useWishlist } from '../../context/useWishlist';
-import { useCart } from '../../context/useCart';
+import useAddToCart from '../../hooks/useAddToCart';
+import { useConfirm } from '../../context/useConfirm';
 import { useToast } from '../../context/useToast';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import { formatPrice } from '../../utils/formatPrice';
@@ -21,18 +22,20 @@ export function WishlistLoadState({ loading, error, onRetry, children }) {
 export default function Wishlist() {
   useDocumentTitle('Wishlist');
   const { items: products, remove, isPending, loading, error, reload } = useWishlist();
-  const { addItem } = useCart();
+  const addToCart = useAddToCart();
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const moving = useRef(new Set());
   async function handleRemove(product) {
-    if (await remove(product.id)) showToast(`${product.name} removed from your wishlist.`, { type: 'info' });
+    const ok = await confirm({ title: 'Remove from wishlist?', message: `Remove ${product.name} from your wishlist?`, confirmLabel: 'Remove' });
+    if (ok && await remove(product.id)) showToast(`${product.name} removed from your wishlist.`, { type: 'info' });
   }
 
   async function handleMove(product) {
     if (moving.current.has(product.id)) return;
     moving.current.add(product.id);
     try {
-      if (addItem(product, { silent: true })) {
+      if (await addToCart(product, { silent: true }, { title: 'Move to cart?', confirmLabel: 'Move to cart' })) {
         if (await remove(product.id)) showToast(`${product.name} moved to your cart.`, { type: 'success', action: { label: 'View cart', to: '/cart' } });
       }
     } finally { moving.current.delete(product.id); }

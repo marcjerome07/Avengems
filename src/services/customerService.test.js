@@ -15,6 +15,7 @@ const { AddressLoadState, default: Addresses } = await vite.ssrLoadModule('/src/
 const { default: Profile } = await vite.ssrLoadModule('/src/pages/account/Profile.jsx');
 const { AuthProvider } = await vite.ssrLoadModule('/src/context/AuthContext.jsx');
 const { ToastProvider } = await vite.ssrLoadModule('/src/context/ToastContext.jsx');
+const { ConfirmProvider } = await vite.ssrLoadModule('/src/context/ConfirmContext.jsx');
 const { createAuthSession } = await vite.ssrLoadModule('/src/services/authSession.js');
 const user = { id: 'verified-owner', name: 'Server Customer', email: 'customer@example.test', phone: '09171234567', role: 'customer', verified: true };
 const address = { id: 'address-id', label: 'Home', fullName: 'Server Customer', isDefault: true };
@@ -124,7 +125,7 @@ test('address loading and failure states expose loading feedback and an explicit
 test('account screens retain layout and read-only email with server-derived identity', async () => {
   const session = createAuthSession({ getCurrentUser: async () => user });
   await session.restore();
-  const render = (Page) => renderToString(h(MemoryRouter, null, h(AuthProvider, { session }, h(ToastProvider, null, h(Page)))));
+  const render = (Page) => renderToString(h(MemoryRouter, null, h(AuthProvider, { session }, h(ToastProvider, null, h(ConfirmProvider, null, h(Page))))));
   const profileHtml = render(Profile);
   assert.match(profileHtml, /Server Customer/);
   assert.match(profileHtml, /customer@example.test/);

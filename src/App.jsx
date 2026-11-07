@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastProvider } from './context/ToastContext';
+import { ConfirmProvider } from './context/ConfirmContext';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
@@ -8,7 +9,6 @@ import ScrollToTop from './components/layout/ScrollToTop';
 import StoreLayout from './components/layout/StoreLayout';
 import ProtectedRoute from './components/routing/ProtectedRoute';
 import AdminRoute from './components/routing/AdminRoute';
-import IdleSessionRedirect from './components/routing/IdleSessionRedirect';
 
 import Home from './pages/Home';
 import Shop from './pages/Shop';
@@ -58,89 +58,90 @@ export default function App() {
   return (
     <BrowserRouter>
       <ToastProvider>
-        <AuthProvider>
-          <CartProvider>
-            <WishlistProvider>
-              <ScrollToTop />
-              <IdleSessionRedirect />
-              <Routes>
-                <Route element={<StoreLayout />}>
-                  <Route index element={<Home />} />
-                  <Route path="shop" element={<Shop />} />
-                  <Route path="product/:slug" element={<ProductDetails />} />
-                  <Route path="collections" element={<Collections />} />
-                  <Route path="collections/:slug" element={<CollectionDetail />} />
-                  <Route path="about" element={<About />} />
-                  <Route path="cart" element={<Cart />} />
+        <ConfirmProvider>
+          <AuthProvider>
+            <CartProvider>
+              <WishlistProvider>
+                <ScrollToTop />
+                <Routes>
+                  <Route element={<StoreLayout />}>
+                    <Route index element={<Home />} />
+                    <Route path="shop" element={<Shop />} />
+                    <Route path="product/:slug" element={<ProductDetails />} />
+                    <Route path="collections" element={<Collections />} />
+                    <Route path="collections/:slug" element={<CollectionDetail />} />
+                    <Route path="about" element={<About />} />
+                    <Route path="cart" element={<Cart />} />
+                    <Route
+                      path="checkout"
+                      element={
+                        <ProtectedRoute>
+                          <Checkout />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="order-confirmation/:orderId"
+                      element={
+                        <ProtectedRoute>
+                          <OrderConfirmation />
+                        </ProtectedRoute>
+                      }
+                    />
+  
+                    <Route path="login" element={<Login />} />
+                    <Route path="signup" element={<SignUp />} />
+                    <Route path="verify-email" element={<VerifyEmail />} />
+                    <Route path="forgot-password" element={<ForgotPassword />} />
+  
+                    <Route
+                      path="account"
+                      element={
+                        <ProtectedRoute>
+                          <AccountLayout />
+                        </ProtectedRoute>
+                      }
+                    >
+                      <Route index element={<Overview />} />
+                      <Route path="orders" element={<Orders />} />
+                      <Route path="orders/:id" element={<OrderDetails />} />
+                      <Route path="wishlist" element={<AccountWishlist />} />
+                      <Route path="profile" element={<Profile />} />
+                      <Route path="addresses" element={<Addresses />} />
+                      <Route path="security" element={<Security />} />
+                    </Route>
+  
+                    <Route path="shipping" element={<InfoPage page="shipping" />} />
+                    <Route path="contact" element={<InfoPage page="contact" />} />
+                    <Route path="terms" element={<InfoPage page="terms" />} />
+                    <Route path="privacy" element={<InfoPage page="privacy" />} />
+                    <Route path="home" element={<Navigate to="/" replace />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Route>
+  
                   <Route
-                    path="checkout"
+                    path="admin"
                     element={
-                      <ProtectedRoute>
-                        <Checkout />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="order-confirmation/:orderId"
-                    element={
-                      <ProtectedRoute>
-                        <OrderConfirmation />
-                      </ProtectedRoute>
-                    }
-                  />
-
-                  <Route path="login" element={<Login />} />
-                  <Route path="signup" element={<SignUp />} />
-                  <Route path="verify-email" element={<VerifyEmail />} />
-                  <Route path="forgot-password" element={<ForgotPassword />} />
-
-                  <Route
-                    path="account"
-                    element={
-                      <ProtectedRoute>
-                        <AccountLayout />
-                      </ProtectedRoute>
+                      <AdminRoute>
+                        <Suspense fallback={<AdminFallback />}>
+                          <AdminLayout />
+                        </Suspense>
+                      </AdminRoute>
                     }
                   >
-                    <Route index element={<Overview />} />
-                    <Route path="orders" element={<Orders />} />
-                    <Route path="orders/:id" element={<OrderDetails />} />
-                    <Route path="wishlist" element={<AccountWishlist />} />
-                    <Route path="profile" element={<Profile />} />
-                    <Route path="addresses" element={<Addresses />} />
-                    <Route path="security" element={<Security />} />
+                    <Route index element={<Dashboard />} />
+                    <Route path="products" element={<AdminProducts />} />
+                    <Route path="orders" element={<AdminOrders />} />
+                    <Route path="customers" element={<Customers />} />
+                    <Route path="members" element={<MembersRoles />} />
+                    <Route path="analytics" element={<Analytics />} />
+                    <Route path="settings" element={<Settings />} />
                   </Route>
-
-                  <Route path="shipping" element={<InfoPage page="shipping" />} />
-                  <Route path="contact" element={<InfoPage page="contact" />} />
-                  <Route path="terms" element={<InfoPage page="terms" />} />
-                  <Route path="privacy" element={<InfoPage page="privacy" />} />
-                  <Route path="home" element={<Navigate to="/" replace />} />
-                  <Route path="*" element={<NotFound />} />
-                </Route>
-
-                <Route
-                  path="admin"
-                  element={
-                    <AdminRoute>
-                      <Suspense fallback={<AdminFallback />}>
-                        <AdminLayout />
-                      </Suspense>
-                    </AdminRoute>
-                  }
-                >
-                  <Route index element={<Dashboard />} />
-                  <Route path="products" element={<AdminProducts />} />
-                  <Route path="orders" element={<AdminOrders />} />
-                  <Route path="customers" element={<Customers />} />
-                  <Route path="members" element={<MembersRoles />} />
-                  <Route path="analytics" element={<Analytics />} />
-                  <Route path="settings" element={<Settings />} />
-                </Route>
-              </Routes>
-            </WishlistProvider>
-          </CartProvider>
-        </AuthProvider>
+                </Routes>
+              </WishlistProvider>
+            </CartProvider>
+          </AuthProvider>
+        </ConfirmProvider>
       </ToastProvider>
     </BrowserRouter>
   );

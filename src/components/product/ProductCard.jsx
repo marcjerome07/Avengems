@@ -6,7 +6,7 @@ import QuickViewModal from './QuickViewModal';
 import Badge from '../ui/Badge';
 import Rating from '../ui/Rating';
 import Button from '../ui/Button';
-import { useCart } from '../../context/useCart';
+import useAddToCart from '../../hooks/useAddToCart';
 import { useWishlist } from '../../context/useWishlist';
 import { formatPrice } from '../../utils/formatPrice';
 import { stoneVar } from '../../utils/stoneTheme';
@@ -17,7 +17,7 @@ const shortMaterial = (m) => (m === '925 Sterling Silver' ? '925 silver' : 'Stai
 
 export default function ProductCard({ product }) {
   const [quickOpen, setQuickOpen] = useState(false);
-  const { addItem } = useCart();
+  const addToCart = useAddToCart();
   const { isWishlisted, isPending, toggle, loading: wishlistLoading } = useWishlist();
   const wished = isWishlisted(product.id);
   const outOfStock = product.stock <= 0;
@@ -76,7 +76,7 @@ export default function ProductCard({ product }) {
             variant="outline"
             size="sm"
             icon={ShoppingBag}
-            onClick={() => addItem(product)}
+            onClick={() => addToCart(product)}
             disabled={outOfStock}
             aria-label={outOfStock ? `${product.name} is out of stock` : `Add ${product.name} to cart`}
           >

@@ -7,7 +7,7 @@ import Badge from '../ui/Badge';
 import Rating from '../ui/Rating';
 import QuantitySelector from '../ui/QuantitySelector';
 import ProductMedia from './ProductMedia';
-import { useCart } from '../../context/useCart';
+import useAddToCart from '../../hooks/useAddToCart';
 import { useWishlist } from '../../context/useWishlist';
 import { formatPrice } from '../../utils/formatPrice';
 import { stoneVar } from '../../utils/stoneTheme';
@@ -15,12 +15,12 @@ import './QuickViewModal.css';
 
 export default function QuickViewModal({ product, open, onClose }) {
   const [quantity, setQuantity] = useState(1);
-  const { addItem } = useCart();
+  const addToCart = useAddToCart();
   const { isWishlisted, isPending, toggle, loading: wishlistLoading } = useWishlist();
   const outOfStock = product.stock <= 0;
 
-  function handleAdd() {
-    if (addItem(product, { quantity })) {
+  async function handleAdd() {
+    if (await addToCart(product, { quantity })) {
       setQuantity(1);
       onClose();
     }

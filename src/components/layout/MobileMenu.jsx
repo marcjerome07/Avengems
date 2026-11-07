@@ -4,17 +4,21 @@ import Modal from '../ui/Modal';
 import Logo from './Logo';
 import { NAV_LINKS } from './navLinks';
 import { useAuth } from '../../context/useAuth';
+import { useConfirm } from '../../context/useConfirm';
 import { useToast } from '../../context/useToast';
+import { LOGOUT_CONFIRM } from '../../utils/confirmMessages';
 import { DIAMOND_STYLES } from '../../utils/stoneTheme';
 import './MobileMenu.css';
 
 export default function MobileMenu({ open, onClose }) {
   const { user, isAdmin, logout } = useAuth();
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const navigate = useNavigate();
 
   async function handleLogout() {
     onClose();
+    if (!(await confirm(LOGOUT_CONFIRM))) return;
     try {
       await logout();
       showToast('You have been logged out.', { type: 'info' });

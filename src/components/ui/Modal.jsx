@@ -3,6 +3,10 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import './Modal.css';
 
+// Open dialogs, newest last. Only the top one handles Esc and Tab, so a confirm opened
+// over another dialog (e.g. quick view) doesn't close or fight with the one underneath.
+const openStack = [];
+
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -29,8 +33,11 @@ export default function Modal({ open, onClose, title, children, footer, size = '
     const panel = panelRef.current;
     const first = panel?.querySelector('[data-autofocus]') ?? panel?.querySelector(FOCUSABLE);
     (first ?? panel)?.focus();
+    const token = {};
+    openStack.push(token);
 
     function handleKey(e) {
+      if (openStack[openStack.length - 1] !== token) return;
       if (e.key === 'Escape') {
         e.stopPropagation();
         onCloseRef.current?.();
@@ -55,6 +62,7 @@ export default function Modal({ open, onClose, title, children, footer, size = '
 
     document.addEventListener('keydown', handleKey);
     return () => {
+      openStack.splice(openStack.indexOf(token), 1);
       document.removeEventListener('keydown', handleKey);
       document.body.style.overflow = overflow;
       if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();

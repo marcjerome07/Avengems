@@ -22,6 +22,7 @@ import EmptyState from '../components/ui/EmptyState';
 import { QuoteTotals, MiniItems } from '../components/cart/OrderSummary';
 import { useCart } from '../context/useCart';
 import { useAuth } from '../context/useAuth';
+import { useConfirm } from '../context/useConfirm';
 import { useToast } from '../context/useToast';
 import { placeOrder, orderRequest, PAYMENT_LABELS } from '../services/orderService';
 import { getAddresses } from '../services/authService';
@@ -80,6 +81,7 @@ export default function Checkout() {
   const { items, totals, quotedItems, quoteLoading, quoteError, reloadQuote, completeCheckout } = useCart();
   const { user } = useAuth();
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const submitting = useRef(false);
   const [pending, setPending] = useState(() => {
@@ -195,6 +197,16 @@ export default function Checkout() {
         setStep(s);
         return;
       }
+    }
+    // Only a new order asks; retrying a pending order re-sends one the user already confirmed.
+    if (!pending) {
+      const ok = await confirm({
+        title: 'Place this order?',
+        message: `Your total is ${formatPrice(totals.total)}, paid by ${PAYMENT_LABELS[values.paymentMethod]}.`,
+        confirmLabel: 'Place order',
+        cancelLabel: 'Go back',
+      });
+      if (!ok) return;
     }
     submitting.current = true;
     setPlacing(true);
