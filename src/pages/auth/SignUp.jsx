@@ -7,7 +7,7 @@ import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import { useToast } from '../../context/useToast';
 import { register } from '../../services/authService';
-import { runValidators, validateName, validateEmail, validatePassword, validatePasswordMatch } from '../../utils/validators';
+import { runValidators, validateName, validateEmail, validatePassword, validatePasswordMatch, PASSWORD_RULES } from '../../utils/validators';
 
 export default function SignUp() {
   const navigate = useNavigate();
@@ -16,6 +16,18 @@ export default function SignUp() {
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
+
+  // Requirements show while the password is being created: when the field (or its
+  // show/hide button) has focus, when a typed password still misses a rule, or after
+  // a failed submit flagged the password.
+  const passwordComplete = PASSWORD_RULES.every((rule) => rule.test(values.password));
+  const showChecklist = passwordFocused || Boolean(errors.password) || (values.password !== '' && !passwordComplete);
+
+  function handlePasswordBlur(e) {
+    // Focus moving to the eye button inside the same group still counts as "in the field".
+    if (!e.currentTarget.contains(e.relatedTarget)) setPasswordFocused(false);
+  }
 
   function set(name, value) {
     setValues((v) => ({ ...v, [name]: value }));
@@ -78,16 +90,22 @@ export default function SignUp() {
           onChange={(e) => set('email', e.target.value)}
           error={errors.email}
         />
-        <Input
-          label="Password"
-          revealable
-          autoComplete="new-password"
-          value={values.password}
-          onChange={(e) => set('password', e.target.value)}
-          error={errors.password}
-          aria-describedby="pw-rules"
-        />
-        <PasswordChecklist password={values.password} id="pw-rules" />
+        <div className="pw-field" onFocus={() => setPasswordFocused(true)} onBlur={handlePasswordBlur}>
+          <Input
+            label="Password"
+            revealable
+            autoComplete="new-password"
+            value={values.password}
+            onChange={(e) => set('password', e.target.value)}
+            error={errors.password}
+            aria-describedby={showChecklist ? 'pw-rules' : undefined}
+          />
+          <div className={`pw-reveal ${showChecklist ? 'is-open' : ''}`} aria-hidden={!showChecklist}>
+            <div className="pw-reveal__inner">
+              <PasswordChecklist password={values.password} id="pw-rules" />
+            </div>
+          </div>
+        </div>
         <Input
           label="Confirm Password"
           revealable

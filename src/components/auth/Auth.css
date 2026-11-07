@@ -251,6 +251,57 @@
   color: var(--success);
 }
 
+/* Sign Up: checklist revealed only while the password is being created.
+   Height animates via grid rows so the fields below move smoothly; visibility
+   removes it from the accessibility tree once closed. */
+.pw-field {
+  display: grid;
+}
+
+.pw-reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    grid-template-rows 200ms ease,
+    opacity 200ms ease,
+    visibility 0s linear 200ms;
+}
+
+.pw-reveal.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    grid-template-rows 200ms ease,
+    opacity 200ms ease,
+    visibility 0s;
+}
+
+.pw-reveal__inner {
+  min-height: 0;
+  overflow: hidden;
+  transform: translateY(-4px);
+  transition: transform 200ms ease;
+}
+
+.pw-reveal.is-open .pw-reveal__inner {
+  transform: none;
+}
+
+.pw-reveal .pw-checklist {
+  margin-top: var(--space-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pw-reveal,
+  .pw-reveal.is-open,
+  .pw-reveal__inner {
+    transition: none;
+  }
+}
+
 /* OTP verifier */
 .otp-verifier {
   display: grid;
