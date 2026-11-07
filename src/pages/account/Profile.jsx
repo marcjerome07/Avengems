@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { User, Mail, Phone } from 'lucide-react';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
-import { useAuth } from '../../context/AuthContext';
-import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/useAuth';
+import { useToast } from '../../context/useToast';
 import { updateProfile } from '../../services/authService';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import { runValidators, validateName, validatePhone, formatPhone } from '../../utils/validators';
@@ -30,7 +30,9 @@ export default function Profile() {
     setSaving(true);
     try {
       const updated = await updateProfile(user.id, values);
-      setUser(updated);
+      setValues({ name: updated.name, phone: updated.phone ?? '' });
+      const restored = await setUser();
+      if (!restored) throw new Error('Profile saved, but your session could not be refreshed. Please sign in again.');
       showToast('Profile saved.', { type: 'success' });
     } catch (err) {
       showToast(err.message, { type: 'error' });
@@ -60,7 +62,7 @@ export default function Profile() {
             icon={Mail}
             value={user.email}
             disabled
-            hint="Email changes will be available once the backend is connected."
+            hint="Your sign-in email is read-only."
           />
           <Input
             label="Phone Number"

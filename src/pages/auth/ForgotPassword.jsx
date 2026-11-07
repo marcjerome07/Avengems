@@ -9,6 +9,7 @@ import Button from '../../components/ui/Button';
 import { requestPasswordReset, resetPassword } from '../../services/authService';
 import { verifyOtp } from '../../services/otpService';
 import { validateEmail, validatePassword, validatePasswordMatch } from '../../utils/validators';
+import { useAuth } from '../../context/useAuth';
 
 const backToLogin = (
   <p>
@@ -28,8 +29,8 @@ function EmailStep({ onSent }) {
     if (message) return;
     setLoading(true);
     try {
-      await requestPasswordReset(email.trim());
-      onSent(email.trim().toLowerCase());
+      const result = await requestPasswordReset(email.trim());
+      onSent(email.trim().toLowerCase(), result.retryAfter);
     } catch (err) {
       setError(err.message);
       setLoading(false);
@@ -64,7 +65,7 @@ function EmailStep({ onSent }) {
   );
 }
 
-function ResetStep({ email, token, onDone, onRestart }) {
+function ResetStep({ onDone, onRestart }) {
   const [values, setValues] = useState({ password: '', confirm: '' });
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
@@ -80,15 +81,15 @@ function ResetStep({ email, token, onDone, onRestart }) {
   async function handleSubmit(e) {
     e.preventDefault();
     const next = {
-      password: validatePassword(values.password),
+      password: values.password.length > 128 ? 'Use at most 128 characters.' : validatePassword(values.password),
       confirm: validatePasswordMatch(values.password, values.confirm),
     };
     setErrors(next);
     if (next.password || next.confirm) return;
     setLoading(true);
     try {
-      await resetPassword(email, token, values.password);
-      onDone();
+      const result = await resetPassword(values.password);
+      onDone(result);
     } catch (err) {
       setFormError(err.message);
       setLoading(false);
@@ -135,18 +136,20 @@ function ResetStep({ email, token, onDone, onRestart }) {
 export default function ForgotPassword() {
   const [step, setStep] = useState('email');
   const [email, setEmail] = useState('');
-  const [token, setToken] = useState('');
+  const [resendAt, setResendAt] = useState(0);
+  const [revocationConfirmed, setRevocationConfirmed] = useState(true);
+  const { logout } = useAuth();
 
   function restart() {
     setStep('email');
-    setToken('');
   }
 
   if (step === 'email') {
     return (
       <EmailStep
-        onSent={(e) => {
+        onSent={(e, retryAfter) => {
           setEmail(e);
+          setResendAt(Date.now() + (retryAfter || 60) * 1000);
           setStep('otp');
         }}
       />
@@ -160,7 +163,7 @@ export default function ForgotPassword() {
         docTitle="Verification code"
         subtitle={
           <>
-            We sent a 6-digit code to <span className="auth-email-pill">{email}</span>
+            If an account exists, check the recovery email for <span className="auth-email-pill">{email}</span>.
           </>
         }
         footer={
@@ -172,9 +175,9 @@ export default function ForgotPassword() {
         <OtpVerifier
           email={email}
           purpose="reset"
+          initialResendAt={resendAt}
           verify={(code) => verifyOtp(email, 'reset', code)}
-          onVerified={(result) => {
-            setToken(result.token);
+          onVerified={() => {
             setStep('reset');
           }}
           submitLabel="Verify Code"
@@ -184,7 +187,13 @@ export default function ForgotPassword() {
   }
 
   if (step === 'reset') {
-    return <ResetStep email={email} token={token} onDone={() => setStep('done')} onRestart={restart} />;
+    return <ResetStep onDone={(result) => {
+      setRevocationConfirmed(result.sessionRevocationConfirmed === true);
+      // Invalidate pending frontend restorations immediately. The backend already
+      // cleared the app cookies; its logout endpoint treats the missing session safely.
+      void logout().catch(() => {});
+      setStep('done');
+    }} onRestart={restart} />;
   }
 
   return (
@@ -194,6 +203,7 @@ export default function ForgotPassword() {
           <CircleCheck size={36} strokeWidth={1.3} aria-hidden="true" />
         </span>
         <p>You can now log in with your new password.</p>
+        {!revocationConfirmed && <FormAlert type="warning">Your password was changed, but signing out other devices could not be confirmed. Sign in again and review your sessions.</FormAlert>}
         <Button to="/login" state={{ email }} size="lg" fullWidth>
           Return to Login
         </Button>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -19,12 +19,14 @@ import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import Button from '../components/ui/Button';
 import EmptyState from '../components/ui/EmptyState';
-import { TotalsList, MiniItems } from '../components/cart/OrderSummary';
-import { useCart } from '../context/CartContext';
-import { useAuth } from '../context/AuthContext';
-import { useToast } from '../context/ToastContext';
-import { placeOrder, PAYMENT_LABELS } from '../services/orderService';
+import { QuoteTotals, MiniItems } from '../components/cart/OrderSummary';
+import { useCart } from '../context/useCart';
+import { useAuth } from '../context/useAuth';
+import { useToast } from '../context/useToast';
+import { placeOrder, orderRequest, PAYMENT_LABELS } from '../services/orderService';
 import { getAddresses } from '../services/authService';
+import { pendingCheckout, beginCheckout, finishCheckout, definitiveCheckoutFailure, confirmCheckoutAttempt } from '../services/checkoutAttempts';
+import { authSession } from '../services/authSession';
 import { formatPrice } from '../utils/formatPrice';
 import {
   runValidators,
@@ -75,25 +77,35 @@ const SCHEMAS = {
 const EMPTY_CARD = { cardName: '', cardNumber: '', expiry: '', cvv: '' };
 
 export default function Checkout() {
-  const { items, totals, clearCart } = useCart();
+  const { items, totals, quotedItems, quoteLoading, quoteError, reloadQuote, completeCheckout } = useCart();
   const { user } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
+  const submitting = useRef(false);
+  const [pending, setPending] = useState(() => {
+    try { return pendingCheckout(user.id); } catch (error) { return { invalid: true, message: error.message }; }
+  });
+  const [placementError, setPlacementError] = useState(null);
+  const [savedAddressId, setSavedAddressId] = useState(pending?.request?.shipping?.addressId ?? '');
+  const ready = Boolean(totals) && !quoteLoading && !quoteError;
+  const displayItems = quotedItems ?? items;
 
   const [step, setStep] = useState(0);
   const [values, setValues] = useState({
-    fullName: user?.name ?? '',
-    email: user?.email ?? '',
-    phone: user?.phone ?? '',
-    address: '',
-    city: '',
-    province: '',
-    postalCode: '',
-    paymentMethod: '',
+    fullName: pending?.request?.customer?.name ?? user?.name ?? '',
+    email: pending?.request?.customer?.email ?? user?.email ?? '',
+    phone: pending?.request?.customer?.phone ?? user?.phone ?? '',
+    address: pending?.request?.shipping?.address ?? '',
+    city: pending?.request?.shipping?.city ?? '',
+    province: pending?.request?.shipping?.province ?? '',
+    postalCode: pending?.request?.shipping?.postalCode ?? '',
+    paymentMethod: pending?.request?.paymentMethod ?? '',
     ...EMPTY_CARD,
   });
   const [errors, setErrors] = useState({});
   const [addresses, setAddresses] = useState([]);
+  const [addressError, setAddressError] = useState(null);
+  const [addressVersion, setAddressVersion] = useState(0);
   const [placing, setPlacing] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
 
@@ -104,6 +116,7 @@ export default function Checkout() {
     getAddresses(user.id)
       .then((list) => {
         if (!active) return;
+        setAddressError(null);
         setAddresses(list);
         const def = list.find((a) => a.isDefault);
         if (def) {
@@ -117,13 +130,14 @@ export default function Checkout() {
           }));
         }
       })
-      .catch(() => {});
+      .catch((error) => { if (active) setAddressError(error); });
     return () => {
       active = false;
     };
-  }, [user?.id]);
+  }, [user?.id, addressVersion]);
 
   function setField(name, value) {
+    if (['address', 'city', 'province', 'postalCode'].includes(name)) setSavedAddressId('');
     setValues((v) => ({ ...v, [name]: value }));
     if (errors[name]) setErrors((e) => ({ ...e, [name]: '' }));
   }
@@ -165,6 +179,7 @@ export default function Checkout() {
   }
 
   function applyAddress(id) {
+    setSavedAddressId(id);
     const a = addresses.find((x) => x.id === id);
     if (!a) return;
     setValues((v) => ({ ...v, address: a.address, city: a.city, province: a.province, postalCode: a.postalCode }));
@@ -172,39 +187,49 @@ export default function Checkout() {
   }
 
   async function handlePlaceOrder() {
+    if (submitting.current || pending?.invalid) return;
+    if (!pending && !ready) return;
     // Re-check every step before submitting.
-    for (let s = 0; s < 3; s += 1) {
+    for (let s = 0; !pending && s < 3; s += 1) {
       if (!validateStep(s)) {
         setStep(s);
         return;
       }
     }
+    submitting.current = true;
     setPlacing(true);
+    setPlacementError(null);
     try {
       // Card details are validated above and then discarded. Only the method name is sent.
-      const order = await placeOrder({
-        userId: user.id,
+      const attempt = pending ?? beginCheckout(user.id, orderRequest({
         items,
         customer: { name: values.fullName.trim(), email: values.email.trim(), phone: values.phone.trim() },
-        shipping: {
+        shipping: savedAddressId ? { addressId: savedAddressId } : {
           address: values.address.trim(),
           city: values.city.trim(),
           province: values.province.trim(),
           postalCode: values.postalCode.trim(),
         },
         paymentMethod: values.paymentMethod,
-      });
+      }));
+      if (attempt.owner !== user.id) throw new Error('Sign in to the original account before retrying this order.');
+      setPending(attempt);
+      setValues((value) => ({ ...value, ...EMPTY_CARD }));
+      const order = await confirmCheckoutAttempt(attempt, { placeOrder, completeCart: completeCheckout,
+        isCurrent: () => authSession.getSnapshot().status === 'authenticated' && authSession.getSnapshot().user?.id === attempt.owner });
+      setPending(null);
       setValues((v) => ({ ...v, ...EMPTY_CARD }));
       navigate(`/order-confirmation/${order.id}`, { replace: true });
-      clearCart();
       showToast(`Order ${order.id} placed. Thank you!`, { type: 'success' });
     } catch (err) {
+      if (definitiveCheckoutFailure(err)) { finishCheckout(user.id); setPending(null); }
+      if (['INSUFFICIENT_STOCK', 'PRODUCT_UNAVAILABLE', 'INVALID_CUSTOMIZATION'].includes(err.code)) reloadQuote();
+      setPlacementError(err);
       showToast(err.message ?? 'We could not place your order. Please try again.', { type: 'error' });
-      setPlacing(false);
-    }
+    } finally { submitting.current = false; setPlacing(false); }
   }
 
-  if (!items.length) {
+  if (!items.length && !pending) {
     return (
       <PageContainer title="Checkout">
         <PageHeader title="Checkout" />
@@ -220,6 +245,10 @@ export default function Checkout() {
   return (
     <PageContainer title="Checkout">
       <PageHeader title="Checkout" />
+
+      {pending && <div role="alert"><p>{pending.invalid ? pending.message : 'A checkout is awaiting confirmation. Retry the same order before starting another. Its saved contents will be used.'}</p>
+        {!pending.invalid && <Button loading={placing} onClick={handlePlaceOrder}>Retry pending order</Button>}</div>}
+      {placementError && <p role="alert">{placementError.message}</p>}
 
       <div className="checkout-stepper">
         <Stepper steps={STEPS} current={step} onStepClick={goTo} />
@@ -237,12 +266,12 @@ export default function Checkout() {
             <ShoppingBag size={18} strokeWidth={1.5} aria-hidden="true" /> {summaryOpen ? 'Hide' : 'Show'} order summary
             <ChevronDown size={16} className={summaryOpen ? 'is-open' : ''} aria-hidden="true" />
           </span>
-          <strong>{formatPrice(totals.total)}</strong>
+          <strong>{ready ? formatPrice(totals.total) : '—'}</strong>
         </button>
         {summaryOpen && (
           <div className="checkout-mobile-summary__body">
-            <MiniItems items={items} />
-            <TotalsList totals={totals} />
+            <MiniItems items={displayItems} priced={ready} />
+            <QuoteTotals totals={totals} loading={quoteLoading} error={quoteError} onRetry={reloadQuote} />
           </div>
         )}
       </div>
@@ -257,6 +286,7 @@ export default function Checkout() {
             else handlePlaceOrder();
           }}
         >
+          <fieldset disabled={placing || Boolean(pending)} style={{ display: 'contents' }}>
           {step === 0 && (
             <section className="checkout-step" aria-labelledby="step-title">
               <h2 id="step-title" className="checkout-step__title">
@@ -283,6 +313,7 @@ export default function Checkout() {
               <h2 id="step-title" className="checkout-step__title">
                 Shipping address
               </h2>
+              {addressError && <div role="alert"><p>Saved addresses could not be loaded. Enter a shipping address or retry.</p><Button onClick={() => setAddressVersion((value) => value + 1)}>Retry addresses</Button></div>}
               {addresses.length > 0 && (
                 <Select
                   label="Use a saved address"
@@ -355,7 +386,7 @@ export default function Checkout() {
               {(values.paymentMethod === 'gcash' || values.paymentMethod === 'maya') && (
                 <p className="checkout-note checkout-note--info">
                   <Info size={18} strokeWidth={1.5} aria-hidden="true" />
-                  You&apos;ll be redirected to complete payment with {paymentLabel} after placing your order.
+                  Demo payment with {paymentLabel}. No wallet redirect or real charge will occur.
                 </p>
               )}
 
@@ -394,7 +425,7 @@ export default function Checkout() {
               <p className="checkout-note checkout-note--warn">
                 <Lock size={18} strokeWidth={1.5} aria-hidden="true" />
                 <span>
-                  <strong>Prototype only.</strong> No real payment is processed and card details are not stored.
+                  <strong>Demo payment only.</strong> Use test details. No real payment is processed and card details are never sent or stored.
                 </span>
               </p>
             </section>
@@ -412,7 +443,7 @@ export default function Checkout() {
                     <Pencil size={14} /> Edit cart
                   </Link>
                 </div>
-                <MiniItems items={items} />
+                <MiniItems items={displayItems} priced={ready} />
               </div>
               <div className="review-grid">
                 <div className="review-block">
@@ -452,11 +483,12 @@ export default function Checkout() {
                 </div>
               </div>
               <div className="review-block">
-                <TotalsList totals={totals} />
+                <QuoteTotals totals={totals} loading={quoteLoading} error={quoteError} onRetry={reloadQuote} />
               </div>
             </section>
           )}
 
+          </fieldset>
           <div className="checkout-actions">
             {step > 0 ? (
               <Button variant="ghost" icon={ArrowLeft} onClick={back} disabled={placing}>
@@ -472,8 +504,8 @@ export default function Checkout() {
                 Continue to {STEPS[step + 1]}
               </Button>
             ) : (
-              <Button type="submit" loading={placing} icon={Lock}>
-                {placing ? 'Placing order…' : `Place Order · ${formatPrice(totals.total)}`}
+              <Button type="submit" disabled={pending?.invalid || (!pending && !ready)} loading={placing} icon={Lock}>
+                {placing ? 'Placing order…' : pending ? 'Retry pending order' : `Place Order · ${ready ? formatPrice(totals.total) : '—'}`}
               </Button>
             )}
           </div>
@@ -483,8 +515,8 @@ export default function Checkout() {
           <h2 id="checkout-summary-title" className="summary-card__title">
             Order summary
           </h2>
-          <MiniItems items={items} />
-          <TotalsList totals={totals} showFreeShippingHint />
+          <MiniItems items={displayItems} priced={ready} />
+          <QuoteTotals totals={totals} loading={quoteLoading} error={quoteError} onRetry={reloadQuote} showFreeShippingHint />
         </aside>
       </div>
     </PageContainer>

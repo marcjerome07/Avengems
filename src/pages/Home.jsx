@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ShieldCheck, Palette, Gift, Gem as GemIcon, Mail } from 'lucide-react';
 import useDocumentTitle from '../hooks/useDocumentTitle';
+import useServiceData from '../hooks/useServiceData';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Skeleton from '../components/ui/Skeleton';
 import HeroVisual from '../components/product/HeroVisual';
 import CollectionCard from '../components/product/CollectionCard';
 import ProductGrid from '../components/product/ProductGrid';
-import { useToast } from '../context/ToastContext';
+import { useToast } from '../context/useToast';
 import { getCollections, getFeaturedProducts, getPackages } from '../services/productService';
 import { formatPriceShort } from '../utils/formatPrice';
 import { validateEmail } from '../utils/validators';
@@ -62,15 +63,7 @@ function Hero() {
 }
 
 function FeaturedCollections() {
-  const [collections, setCollections] = useState(null);
-
-  useEffect(() => {
-    let active = true;
-    getCollections().then((data) => active && setCollections(data));
-    return () => {
-      active = false;
-    };
-  }, []);
+  const { data: collections, error, reload } = useServiceData(getCollections);
 
   return (
     <section id="stones" className="section container home-stones" aria-labelledby="stones-title">
@@ -86,7 +79,7 @@ function FeaturedCollections() {
         </Link>
       </div>
       <div className="collection-grid">
-        {collections
+        {error ? <p role="alert">Collections are unavailable. <button type="button" onClick={reload}>Retry</button></p> : collections
           ? collections.map((c) => <CollectionCard key={c.id} collection={c} />)
           : Array.from({ length: 6 }, (_, i) => <Skeleton key={i} height={300} />)}
       </div>
@@ -95,20 +88,7 @@ function FeaturedCollections() {
 }
 
 function FeaturedProducts() {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-    getFeaturedProducts(8).then((data) => {
-      if (!active) return;
-      setProducts(data);
-      setLoading(false);
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
+  const { data: products, loading, error, reload } = useServiceData(() => getFeaturedProducts(8));
 
   return (
     <section className="section container" aria-labelledby="featured-title">
@@ -123,7 +103,8 @@ function FeaturedProducts() {
           View all <ArrowRight size={16} strokeWidth={1.5} />
         </Link>
       </div>
-      <ProductGrid products={products} loading={loading} skeletonCount={8} />
+      {error ? <p role="alert">Featured products are unavailable. <button type="button" onClick={reload}>Retry</button></p>
+        : <ProductGrid products={products ?? []} loading={loading} skeletonCount={8} />}
     </section>
   );
 }
@@ -185,7 +166,6 @@ function BrandPromise() {
 function Newsletter() {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
-  const [sending, setSending] = useState(false);
   const { showToast } = useToast();
 
   function handleSubmit(e) {
@@ -193,13 +173,7 @@ function Newsletter() {
     const message = validateEmail(email);
     setError(message);
     if (message) return;
-    // Frontend only: no email is stored or sent.
-    setSending(true);
-    setTimeout(() => {
-      setSending(false);
-      setEmail('');
-      showToast("You're on the list. Welcome to Avengems.", { type: 'success' });
-    }, 600);
+    showToast('Newsletter subscriptions are not available yet. No email was saved.', { type: 'info' });
   }
 
   return (
@@ -225,7 +199,7 @@ function Newsletter() {
             error={error}
             autoComplete="email"
           />
-          <Button type="submit" loading={sending}>
+          <Button type="submit">
             Subscribe
           </Button>
         </form>

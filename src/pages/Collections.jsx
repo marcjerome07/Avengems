@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import useServiceData from '../hooks/useServiceData';
 import PageContainer, { PageHeader } from '../components/layout/PageContainer';
 import CollectionCard from '../components/product/CollectionCard';
 import PackageCard from '../components/product/PackageCard';
@@ -8,20 +8,8 @@ import { DIAMOND_STYLES } from '../utils/stoneTheme';
 import './Collections.css';
 
 export default function Collections() {
-  const [collections, setCollections] = useState(null);
-  const [packages, setPackages] = useState(null);
-
-  useEffect(() => {
-    let active = true;
-    Promise.all([getCollections(), getPackages()]).then(([c, p]) => {
-      if (!active) return;
-      setCollections(c);
-      setPackages(p);
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
+  const { data: collections, error, reload } = useServiceData(getCollections);
+  const { data: packages } = useServiceData(getPackages);
 
   return (
     <PageContainer title="Collections">
@@ -41,7 +29,7 @@ export default function Collections() {
 
       <section aria-label="Stone collections" className="collections-list">
         <div className="collection-grid collection-grid--3">
-          {collections
+          {error ? <p role="alert">Collections are unavailable. <button type="button" onClick={reload}>Retry</button></p> : collections
             ? collections.map((c) => <CollectionCard key={c.id} collection={c} />)
             : Array.from({ length: 6 }, (_, i) => <Skeleton key={i} height={360} />)}
         </div>

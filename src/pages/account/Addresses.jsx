@@ -6,14 +6,20 @@ import Modal from '../../components/ui/Modal';
 import Badge from '../../components/ui/Badge';
 import EmptyState from '../../components/ui/EmptyState';
 import Skeleton from '../../components/ui/Skeleton';
-import { useAuth } from '../../context/AuthContext';
-import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/useAuth';
+import { useToast } from '../../context/useToast';
 import { getAddresses, saveAddress, deleteAddress, setDefaultAddress } from '../../services/authService';
 import useServiceData from '../../hooks/useServiceData';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import { runValidators, validateName, validatePhone, validateRequired, validatePostalCode, formatPhone } from '../../utils/validators';
 
 const EMPTY = { label: '', fullName: '', phone: '', address: '', city: '', province: '', postalCode: '', isDefault: false };
+
+export function AddressLoadState({ loading, error, onRetry, children }) {
+  if (loading) return <div className="address-grid" aria-label="Loading addresses"><Skeleton height={200} /><Skeleton height={200} /></div>;
+  if (error) return <div role="alert"><p>{error.message}</p><Button onClick={onRetry}>Retry loading addresses</Button></div>;
+  return children;
+}
 
 function AddressForm({ initial, onCancel, onSave, saving }) {
   const [values, setValues] = useState(initial);
@@ -82,7 +88,7 @@ export default function Addresses() {
   useDocumentTitle('Addresses');
   const { user } = useAuth();
   const { showToast } = useToast();
-  const { data, loading, setData } = useServiceData(() => getAddresses(user.id), [user.id]);
+  const { data, loading, error, reload, setData } = useServiceData(() => getAddresses(user.id), [user.id]);
   const [editing, setEditing] = useState(null); // address object or EMPTY for new
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -120,17 +126,13 @@ export default function Addresses() {
           <h1 className="account-title">Addresses</h1>
           <p className="account-subtitle">Saved addresses appear at checkout.</p>
         </div>
-        <Button icon={Plus} onClick={() => setEditing({ ...EMPTY, fullName: user.name ?? '', phone: user.phone ?? '' })}>
+        <Button icon={Plus} disabled={busy || loading || Boolean(error)} onClick={() => setEditing({ ...EMPTY, fullName: user.name ?? '', phone: user.phone ?? '' })}>
           Add address
         </Button>
       </header>
 
-      {loading ? (
-        <div className="address-grid">
-          <Skeleton height={200} />
-          <Skeleton height={200} />
-        </div>
-      ) : addresses.length ? (
+      <AddressLoadState loading={loading} error={error} onRetry={reload}>
+      {addresses.length ? (
         <ul className="address-grid" role="list">
           {addresses.map((a) => (
             <li key={a.id} className={`address-card ${a.isDefault ? 'is-default' : ''}`}>
@@ -145,7 +147,7 @@ export default function Addresses() {
               </p>
               <p>{a.phone}</p>
               <div className="address-card__actions">
-                <Button size="sm" variant="ghost" icon={Pencil} onClick={() => setEditing(a)}>
+                <Button size="sm" variant="ghost" icon={Pencil} disabled={busy} onClick={() => setEditing(a)}>
                   Edit
                 </Button>
                 {!a.isDefault && (
@@ -163,6 +165,7 @@ export default function Addresses() {
                   size="sm"
                   variant="ghost"
                   icon={Trash2}
+                  disabled={busy}
                   onClick={() => setConfirmDelete(a)}
                   aria-label={`Delete ${a.label} address`}
                 >
@@ -179,6 +182,7 @@ export default function Addresses() {
           </Button>
         </EmptyState>
       )}
+      </AddressLoadState>
 
       <Modal open={Boolean(editing)} onClose={() => setEditing(null)} title={editing?.id ? 'Edit address' : 'Add address'} size="md">
         {editing && <AddressForm initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} saving={busy} />}

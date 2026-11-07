@@ -1,7 +1,6 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import ToastViewport from '../components/ui/Toast';
-
-const ToastContext = createContext(null);
+import { ToastContext } from './useToast';
 
 const DEFAULT_DURATION = 3800;
 
@@ -45,10 +44,4 @@ export function ToastProvider({ children }) {
       <ToastViewport toasts={toasts} onDismiss={dismiss} />
     </ToastContext.Provider>
   );
-}
-
-export function useToast() {
-  const ctx = useContext(ToastContext);
-  if (!ctx) throw new Error('useToast must be used inside <ToastProvider>');
-  return ctx;
 }

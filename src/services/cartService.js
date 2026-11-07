@@ -1,26 +1,16 @@
-// MOCK SERVICE — replace the body of these functions with real API calls when the backend is ready.
-//
-// The cart itself lives in CartContext and persists to localStorage.
-// Totals are calculated here so the backend can later become the source of truth
-// (suggested endpoint: POST /api/cart/quote { items } -> totals).
+// Browser selections persist locally; monetary amounts come from server quotes.
 
 import { readStorage, writeStorage } from '../utils/storage';
-import { settingsTable } from './mockDb';
 
 const CART_KEY = 'cart';
 
 export function loadCart() {
   const items = readStorage(CART_KEY, []);
-  return Array.isArray(items) ? items : [];
+  return Array.isArray(items) ? items.filter((item) => item && typeof item === 'object' && typeof item.productId === 'string' && typeof item.lineId === 'string') : [];
 }
 
 export function saveCart(items) {
   writeStorage(CART_KEY, items);
-}
-
-export function getShippingRules() {
-  const { shippingFee, freeShippingThreshold } = settingsTable.get();
-  return { flatFee: shippingFee, freeThreshold: freeShippingThreshold };
 }
 
 /** Builds a cart line's identity: same product with different options = separate line. */
@@ -28,20 +18,10 @@ export function lineIdFor(productId, color, size) {
   return `${productId}|${color}|${size}`;
 }
 
-export function calculateTotals(items) {
-  const { flatFee, freeThreshold } = getShippingRules();
-  const itemCount = items.reduce((n, i) => n + i.quantity, 0);
-  const subtotal = items.reduce((sum, i) => sum + i.basePrice * i.quantity, 0);
-  const customizationTotal = items.reduce((sum, i) => sum + i.customizationFee * i.quantity, 0);
-  const merchandise = subtotal + customizationTotal;
-  const shippingFee = itemCount === 0 || merchandise >= freeThreshold ? 0 : flatFee;
-  return {
-    itemCount,
-    subtotal,
-    customizationTotal,
-    shippingFee,
-    total: merchandise + shippingFee,
-    freeShippingRemaining: Math.max(0, freeThreshold - merchandise),
-    freeThreshold,
-  };
+export const cartSelections = (items) => items.map((item) => ({ productId: item.productId, quantity: item.quantity, color: item.color ?? null, size: item.size ?? null }));
+export function subtractPurchasedItems(items, purchased) {
+  const key = (item) => JSON.stringify([item.productId, item.color ?? null, item.size ?? null]);
+  const counts = new Map();
+  for (const item of purchased) counts.set(key(item), (counts.get(key(item)) ?? 0) + item.quantity);
+  return items.map((item) => ({ ...item, quantity: item.quantity - (counts.get(key(item)) ?? 0) })).filter((item) => item.quantity > 0);
 }

@@ -12,8 +12,8 @@ import QuantitySelector from '../components/ui/QuantitySelector';
 import ProductMedia from '../components/product/ProductMedia';
 import ColorSwatch from '../components/product/ColorSwatch';
 import ProductGrid from '../components/product/ProductGrid';
-import { useCart } from '../context/CartContext';
-import { useWishlist } from '../context/WishlistContext';
+import { useCart } from '../context/useCart';
+import { useWishlist } from '../context/useWishlist';
 import { getProductBySlug, getRelatedProducts, getProductInfo, CUSTOMIZATION_FEE_RANGE } from '../services/productService';
 import { formatPrice, formatPriceShort } from '../utils/formatPrice';
 import { STONE_ORDER, stoneTheme, stoneFromColor, stoneVar } from '../utils/stoneTheme';
@@ -25,7 +25,7 @@ const VIEW_LABELS = ['Front view', 'Close-up', 'Angled view', 'Full piece'];
 function ProductView({ product }) {
   const navigate = useNavigate();
   const { addItem } = useCart();
-  const { isWishlisted, toggle } = useWishlist();
+  const { isWishlisted, isPending, toggle, loading: wishlistLoading } = useWishlist();
   const [color, setColor] = useState(product.color);
   const [size, setSize] = useState(product.defaultSize);
   const [quantity, setQuantity] = useState(1);
@@ -34,7 +34,8 @@ function ProductView({ product }) {
 
   useEffect(() => {
     let active = true;
-    getRelatedProducts(product, 4).then((list) => active && setRelated(list));
+    getRelatedProducts(product, 4).then((list) => active && setRelated(list))
+      .catch(() => active && setRelated([]));
     return () => {
       active = false;
     };
@@ -300,6 +301,8 @@ function ProductView({ product }) {
               type="button"
               className={`pdp__wish ${wished ? 'is-active' : ''}`}
               onClick={() => toggle(product)}
+              disabled={wishlistLoading || isPending(product.id)}
+              aria-busy={isPending(product.id) || undefined}
               aria-pressed={wished}
               aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'}
             >
@@ -347,6 +350,7 @@ function ProductView({ product }) {
 export default function ProductDetails() {
   const { slug } = useParams();
   const [result, setResult] = useState({ slug: null, status: 'loading', product: null });
+  const [retry, setRetry] = useState(0);
   // Anything fetched for a previous slug counts as still loading.
   const state = result.slug === slug ? result : { status: 'loading', product: null };
 
@@ -354,21 +358,26 @@ export default function ProductDetails() {
     let active = true;
     getProductBySlug(slug)
       .then((product) => active && setResult({ slug, status: 'ready', product }))
-      .catch(() => active && setResult({ slug, status: 'missing', product: null }));
+      .catch((error) => active && setResult({ slug, status: error.code === 'NOT_FOUND' ? 'missing' : 'error', product: null, error }));
     return () => {
       active = false;
     };
-  }, [slug]);
+  }, [slug, retry]);
 
-  if (state.status === 'missing') {
+  if (state.status === 'missing' || state.status === 'error') {
+    const failed = state.status === 'error';
     return (
-      <PageContainer title="Product unavailable">
+      <PageContainer title={failed ? 'Unable to load product' : 'Product unavailable'}>
         <EmptyState
           headingLevel={1}
           icon={PackageX}
-          title="Product unavailable"
-          message="This piece may have been moved or is no longer part of the collection. Explore the rest of our stones instead."
+          title={failed ? 'Unable to load product' : 'Product unavailable'}
+          message={failed ? state.error.message : 'This piece may have been moved or is no longer part of the collection. Explore the rest of our stones instead.'}
         >
+          {failed && <Button onClick={() => {
+            setResult({ slug: null, status: 'loading', product: null });
+            setRetry((value) => value + 1);
+          }}>Try again</Button>}
           <Button to="/shop">Browse the shop</Button>
           <Button to="/collections" variant="outline">
             View collections

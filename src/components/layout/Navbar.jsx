@@ -5,9 +5,9 @@ import Logo from './Logo';
 import MobileMenu from './MobileMenu';
 import SearchOverlay from './SearchOverlay';
 import { NAV_LINKS } from './navLinks';
-import { useAuth } from '../../context/AuthContext';
-import { useCart } from '../../context/CartContext';
-import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/useAuth';
+import { useCart } from '../../context/useCart';
+import { useToast } from '../../context/useToast';
 import './Navbar.css';
 
 function AccountMenu() {
@@ -38,9 +38,13 @@ function AccountMenu() {
 
   async function handleLogout() {
     setOpen(false);
-    await logout();
-    showToast('You have been logged out.', { type: 'info' });
-    navigate('/');
+    try {
+      await logout();
+      showToast('You have been logged out.', { type: 'info' });
+      navigate('/');
+    } catch (error) {
+      showToast(error.message, { type: 'error', duration: 8000 });
+    }
   }
 
   if (!user) {

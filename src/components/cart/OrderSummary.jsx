@@ -1,5 +1,6 @@
 import ProductMedia from '../product/ProductMedia';
 import { formatPrice } from '../../utils/formatPrice';
+import Button from '../ui/Button';
 import './OrderSummary.css';
 
 /** Totals block shared by Cart, Checkout, confirmation and order details. */
@@ -34,8 +35,14 @@ export function TotalsList({ totals, showFreeShippingHint = false }) {
   );
 }
 
+export function QuoteTotals({ totals, loading, error, onRetry, showFreeShippingHint = false }) {
+  if (error) return <div role="alert"><p>{error.message}</p><Button onClick={onRetry}>Retry cart quote</Button></div>;
+  if (loading || !totals) return <p role="status">Validating prices and stock…</p>;
+  return <TotalsList totals={totals} showFreeShippingHint={showFreeShippingHint} />;
+}
+
 /** Compact list of line items (checkout sidebar, review step, confirmation). */
-export function MiniItems({ items }) {
+export function MiniItems({ items, priced = true }) {
   return (
     <ul className="mini-items" role="list">
       {items.map((item) => (
@@ -50,10 +57,10 @@ export function MiniItems({ items }) {
             <p className="mini-item__name">{item.name}</p>
             <p className="mini-item__opts">
               {item.color} · {item.size}
-              {item.customized && <span className="mini-item__custom"> · Customized (+{formatPrice(item.customizationFee)})</span>}
+              {priced && item.customized && <span className="mini-item__custom"> · Customized (+{formatPrice(item.customizationFee)})</span>}
             </p>
           </div>
-          <p className="mini-item__price">{formatPrice(item.unitPrice * item.quantity)}</p>
+          <p className="mini-item__price">{priced ? formatPrice(item.unitPrice * item.quantity) : '—'}</p>
         </li>
       ))}
     </ul>
