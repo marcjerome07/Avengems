@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Mail, User, CircleAlert } from 'lucide-react';
 import AuthShell, { FormAlert } from '../../components/auth/AuthShell';
 import PasswordChecklist from '../../components/auth/PasswordChecklist';
+import GoogleButton from '../../components/auth/GoogleButton';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import { useToast } from '../../context/useToast';
@@ -121,6 +122,8 @@ export default function SignUp() {
           Check your email to complete confirmation before signing in.
         </p>
       </form>
+
+      <GoogleButton />
     </AuthShell>
   );
 }
