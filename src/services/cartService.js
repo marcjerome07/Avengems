@@ -1,16 +1,35 @@
 // Browser selections persist locally; monetary amounts come from server quotes.
 
-import { readStorage, writeStorage } from '../utils/storage';
+import { readStorage, writeStorage, removeStorage } from '../utils/storage';
 
-const CART_KEY = 'cart';
+// Each account keeps its own cart in this browser; logged-out visitors share one guest cart.
+export const GUEST_CART = 'guest';
+const MAX_PER_LINE = 10;
 
-export function loadCart() {
-  const items = readStorage(CART_KEY, []);
+const keyFor = (owner) => (owner === GUEST_CART ? 'cart:guest' : `cart:user:${owner}`);
+
+// Before carts were per account, every visitor shared this key. Its owner is unknown,
+// so it is dropped instead of being shown to (or merged into) whoever logs in next.
+removeStorage('cart');
+
+export function loadCart(owner) {
+  const items = readStorage(keyFor(owner), []);
   return Array.isArray(items) ? items.filter((item) => item && typeof item === 'object' && typeof item.productId === 'string' && typeof item.lineId === 'string') : [];
 }
 
-export function saveCart(items) {
-  writeStorage(CART_KEY, items);
+export function saveCart(owner, items) {
+  writeStorage(keyFor(owner), items);
+}
+
+/** Adds `incoming` lines into `base` (e.g. a guest cart into an account's cart after login). */
+export function mergeCarts(base, incoming) {
+  const merged = base.map((item) => ({ ...item }));
+  for (const item of incoming) {
+    const existing = merged.find((m) => m.lineId === item.lineId);
+    if (existing) existing.quantity = Math.min(existing.maxQuantity ?? MAX_PER_LINE, existing.quantity + item.quantity);
+    else merged.push({ ...item });
+  }
+  return merged;
 }
 
 /** Builds a cart line's identity: same product with different options = separate line. */
