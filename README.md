@@ -25,6 +25,24 @@ forward-only proposals. Customer cancellation defaults OFF until the new RPC is
 deployed, validated and explicitly enabled server-side. Internal order IDs remain
 unchanged. See [implementation, local PostgreSQL evidence and deployment steps](docs/customer-cancellation-order-references.md).
 
+### Order status emails
+
+Express sends order emails (placed, processing, shipped, delivered, cancelled, plus a
+new-order alert to `STORE_NOTIFY_EMAIL`) through Nodemailer and the official AVENGEMS
+Gmail. This is separate from Supabase Auth emails. Customer emails go only to the
+account's verified login email. Settings live in `server/.env` (see `server/.env.example`);
+the server refuses to start if `MAIL_ENABLED=true` with incomplete SMTP settings, or in
+production without `APP_ORIGIN`. Requires `server/db/proposed/order-notifications.sql`.
+
+**Gmail sending limits.** A personal Gmail account can send to roughly **500 recipients per
+day** (Google Workspace: about 2,000), counted across *all* mail from that account, including
+anything sent by hand. Each order produces about 4–5 emails over its lifetime (placed + store
+alert, processing, shipped, delivered), so plan for roughly 100 orders a day at most on personal
+Gmail. When the limit is hit, Gmail rejects sends for up to 24 hours; failures are recorded in
+the admin order email history and can be resent later. If volume grows, move to Google
+Workspace or a transactional provider (Brevo, Postmark, SendGrid, Resend) by changing the
+`SMTP_*` values; no code change is needed.
+
 ### Demo-mode notes for presenters
 
 - **Registration, confirmation and login are real:** signup creates a Supabase Auth customer when permitted and sends provider confirmation instructions. Login/logout use backend HttpOnly cookie sessions. See [registration testing](docs/customer-registration.md) and [frontend session testing](docs/frontend-authentication.md). Registration does not log in automatically.

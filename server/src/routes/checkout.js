@@ -24,7 +24,7 @@ export function createCartQuoteRouter(client, cookieSessions) {
   return router;
 }
 // /api/me has already verified customer identity, no-store, CSRF and Origin.
-export function createOrdersRouter(client, { customerCancellationEnabled = false, payments } = {}) {
+export function createOrdersRouter(client, { customerCancellationEnabled = false, payments, notifications } = {}) {
   const router = Router();
   const eligible = (row) => ['Pending', 'Processing'].includes(row.status) && row.checkout_key
     && row.checkout_request && typeof row.checkout_request === 'object' && !Array.isArray(row.checkout_request);
@@ -72,7 +72,13 @@ export function createOrdersRouter(client, { customerCancellationEnabled = false
     }
     if (result.data?.id !== req.params.id || result.data.user_id !== req.auth.userId || result.data.status !== 'Cancelled'
       || !Array.isArray(result.data.items)) throw new ApiError(503, 'CANCELLATION_UNAVAILABLE', 'Cancellation could not be confirmed. Reload the order.');
-    res.json({ ...toOrder(result.data), canCancel: false });
+    const cancelled = { ...result.data };
+    try {
+      const saved = await client.from('orders').update({ cancellation_reason: 'Cancelled at your request' }).eq('id', req.params.id).select('id').maybeSingle();
+      if (!saved.error && saved.data) cancelled.cancellation_reason = 'Cancelled at your request';
+    } catch { /* The cancellation stands; the email simply omits the reason. */ }
+    notifications?.statusChanged(cancelled, row.status);
+    res.json({ ...toOrder(cancelled), canCancel: false });
   });
   router.post('/', async (req, res) => {
     const key = req.get('Idempotency-Key');
@@ -108,6 +114,8 @@ export function createOrdersRouter(client, { customerCancellationEnabled = false
     if (!result.data?.id || result.data.user_id !== req.auth.userId || !Array.isArray(result.data.items)) {
       throw new ApiError(503, 'CHECKOUT_UNAVAILABLE', 'Order placement could not be confirmed. Retry the same request.');
     }
+    // A replayed checkout returns the same order; the notification claim de-duplicates it.
+    if (result.data.status === 'Pending') notifications?.statusChanged(result.data, null);
     res.json(toOrder(result.data));
   });
   return router;

@@ -9,13 +9,15 @@ import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import { MiniItems, TotalsList } from '../../components/cart/OrderSummary';
 import Input from '../../components/ui/Input';
+import Select from '../../components/ui/Select';
+import OrderNotifications from '../../components/admin/OrderNotifications';
 import EmptyState from '../../components/ui/EmptyState';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { StatusBadge } from '../../components/ui/Badge';
 import { useToast } from '../../context/useToast';
 import useServiceData from '../../hooks/useServiceData';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
-import { getAllOrders, updateOrderStatus, cancelOrder, getAdminOrder, FULFILLMENT_NEXT, reconcileAdminPayment, closeAdminPayment } from '../../services/adminService';
+import { getAllOrders, updateOrderStatus, cancelOrder, getAdminOrder, FULFILLMENT_NEXT, reconcileAdminPayment, closeAdminPayment, ORDER_CARRIERS } from '../../services/adminService';
 import { ORDER_STATUSES, PAYMENT_LABELS } from '../../services/orderService';
 import { formatDate, formatPrice } from '../../utils/formatPrice';
 
@@ -32,6 +34,11 @@ export default function AdminOrders() {
   const [query, setQuery] = useState('');
   const [savingId, setSavingId] = useState(null);
   const [providerSessionId, setProviderSessionId] = useState('');
+  const [cancelReason, setCancelReason] = useState('');
+  const [shipping, setShipping] = useState(null); // order being marked as Shipped
+  const [carrier, setCarrier] = useState(ORDER_CARRIERS[0]);
+  const [trackingNumber, setTrackingNumber] = useState('');
+  const [trackingError, setTrackingError] = useState('');
   async function verifyPayment(close = false) {
     if (!detail || savingId) return;
     setSavingId(detail.id);
@@ -54,15 +61,30 @@ export default function AdminOrders() {
     );
   }, [orders, status, query]);
 
-  async function changeStatus(order, next) {
+  function requestStatus(order, next) {
+    if (next !== 'Shipped') return changeStatus(order, next);
+    setShipping(order); setCarrier(ORDER_CARRIERS[0]); setTrackingNumber(''); setTrackingError('');
+  }
+  async function confirmShipped() {
+    const number = trackingNumber.trim();
+    if (number && !/^[A-Za-z0-9][A-Za-z0-9 -]{2,48}[A-Za-z0-9]$/.test(number)) {
+      setTrackingError('Use 4–50 letters, numbers, spaces or dashes.');
+      return;
+    }
+    const ok = await changeStatus(shipping, 'Shipped', number ? { trackingNumber: number, trackingCarrier: carrier } : undefined);
+    if (ok) setShipping(null);
+  }
+  async function changeStatus(order, next, tracking) {
     setSavingId(order.id);
     try {
-      const updated = await updateOrderStatus(order.id, next, order.status);
+      const updated = await updateOrderStatus(order.id, next, order.status, tracking);
       setData((list) => list.map((o) => (o.id === updated.id ? updated : o)));
-      showToast(`${orderReference(order)} marked as ${next}.`, { type: 'success' });
+      showToast(`${orderReference(order)} marked as ${next}. The customer will be emailed.`, { type: 'success' });
+      return true;
     } catch (err) {
       showToast(err.message, { type: 'error' });
       reload();
+      return false;
     } finally {
       setSavingId(null);
     }
@@ -78,7 +100,7 @@ export default function AdminOrders() {
     const order = cancelling;
     setSavingId(order.id);
     try {
-      const updated = await cancelOrder(order.id);
+      const updated = await cancelOrder(order.id, cancelReason);
       setData((list) => list.map((value) => value.id === updated.id ? updated : value));
       setCancelling(null); showToast(`${orderReference(order)} cancelled and inventory restored.`, { type: 'success' });
     } catch (err) { showToast(err.message, { type: 'error' }); reload(); }
@@ -168,7 +190,7 @@ export default function AdminOrders() {
                       className="status-select"
                       value={o.status}
                       disabled={Boolean(savingId) || !FULFILLMENT_NEXT[o.status]?.length || (o.paymentMethod !== 'cod' && o.payment?.status !== 'paid')}
-                      onChange={(e) => changeStatus(o, e.target.value)}
+                      onChange={(e) => requestStatus(o, e.target.value)}
                     >
                       {[o.status, ...(FULFILLMENT_NEXT[o.status] ?? [])].map((s) => (
                         <option key={s} value={s}>
@@ -176,7 +198,7 @@ export default function AdminOrders() {
                         </option>
                       ))}
                     </select>
-                    {['Pending', 'Processing'].includes(o.status) && !o.payment && <Button size="sm" variant="ghost" disabled={Boolean(savingId)} onClick={() => setCancelling(o)}>Cancel order</Button>}
+                    {['Pending', 'Processing'].includes(o.status) && !o.payment && <Button size="sm" variant="ghost" disabled={Boolean(savingId)} onClick={() => { setCancelReason(''); setCancelling(o); }}>Cancel order</Button>}
                   </td>
                 </tr>
               ))}
@@ -191,17 +213,39 @@ export default function AdminOrders() {
         {detail && <><p>{detail.customer.name} · {detail.customer.email} · {detail.customer.phone}</p>
           <p>{detail.shipping.address}, {detail.shipping.city}, {detail.shipping.province} {detail.shipping.postalCode}</p>
           <p>{detail.status} · {PAYMENT_LABELS[detail.paymentMethod]} · <PaymentStatus order={detail} /></p>
+          {detail.tracking && <p>Tracking: {detail.tracking.carrier ?? 'Courier'} {detail.tracking.number}
+            {detail.tracking.url && <> · <a className="text-link" href={detail.tracking.url} target="_blank" rel="noreferrer">Track</a></>}</p>}
+          {detail.cancellationReason && <p>Cancellation reason: {detail.cancellationReason}</p>}
           {detail.payment && <section aria-label="Test payment management">
             {['creating','unknown'].includes(detail.payment.status) && <Input label="Test provider session ID for reconciliation" value={providerSessionId} onChange={(event) => setProviderSessionId(event.target.value)} />}
             <Button disabled={Boolean(savingId)} onClick={() => verifyPayment()}>Reconcile payment and refunds</Button>
             {['created','pending'].includes(detail.payment.status) && <Button variant="outline" disabled={Boolean(savingId)} onClick={() => verifyPayment(true)}>Close test payment</Button>}
             <p>Paid cancellations and refunds require separate review. Refund reconciliation never restores stock.</p>
           </section>}
-          <MiniItems items={detail.items} /><TotalsList totals={detail} /></>}
+          <MiniItems items={detail.items} /><TotalsList totals={detail} />
+          <OrderNotifications key={`${detail.id}-${detail.status}`} orderId={detail.id} onMessage={(message, type) => showToast(message, { type })} /></>}
       </Modal>
       <Modal open={Boolean(cancelling)} onClose={() => setCancelling(null)} title="Cancel and restock order?"
         footer={<><Button onClick={() => setCancelling(null)} disabled={Boolean(savingId)}>Keep order</Button><Button variant="danger" loading={Boolean(savingId)} onClick={confirmCancellation}>Cancel and restock</Button></>}>
         <p>Cancellation and inventory restoration must complete together. This action requires the approved atomic cancellation SQL function.</p>
+        <div className="field">
+          <label className="field__label" htmlFor="cancel-reason">Reason (optional)</label>
+          <textarea id="cancel-reason" className="field__input" rows={3} maxLength={500} value={cancelReason}
+            onChange={(e) => setCancelReason(e.target.value)} aria-describedby="cancel-reason-hint" />
+          <p className="field__hint" id="cancel-reason-hint">Shown to the customer</p>
+        </div>
+      </Modal>
+      <Modal open={Boolean(shipping)} onClose={() => setShipping(null)} title="Mark order as shipped"
+        footer={<><Button variant="ghost" onClick={() => setShipping(null)} disabled={Boolean(savingId)}>Cancel</Button>
+          <Button loading={Boolean(savingId)} onClick={confirmShipped}>Mark as shipped</Button></>}>
+        <p className="muted">{shipping && orderReference(shipping)} · The customer is emailed with the tracking details.</p>
+        <div className="form-grid form-grid--2">
+          <Select label="Courier" value={carrier} onChange={(e) => setCarrier(e.target.value)}
+            options={ORDER_CARRIERS.map((value) => ({ value, label: value }))} />
+          <Input label="Tracking number (optional)" value={trackingNumber} maxLength={50} error={trackingError}
+            onChange={(e) => { setTrackingNumber(e.target.value); setTrackingError(''); }}
+            hint={carrier === 'Other' ? 'No tracking link is added for other couriers.' : 'A tracking link is added to the email.'} />
+        </div>
       </Modal>
     </>
   );

@@ -6,8 +6,9 @@ import { ADDRESS_COLUMNS, profilePatch, addressPatch, addressId, addressNotFound
 import { createWishlistRouter } from './wishlist.js';
 import { createOrdersRouter } from './checkout.js';
 import { createPaymentRouter } from './payments.js';
+import { createCustomerNotificationsRouter } from '../customerNotifications.js';
 
-export function createMeRouter({ client, verifyAccessToken, cookieSessions, customerCancellationEnabled = false, payments }) {
+export function createMeRouter({ client, verifyAccessToken, cookieSessions, customerCancellationEnabled = false, payments, notifications }) {
   const router = Router();
   router.use(createRequireAuth(verifyAccessToken, { cookieSessions }));
 
@@ -34,8 +35,9 @@ export function createMeRouter({ client, verifyAccessToken, cookieSessions, cust
     next();
   });
   router.use('/wishlist', createWishlistRouter(client));
+  router.use('/notifications', createCustomerNotificationsRouter(client));
   if (payments) router.use('/payments', createPaymentRouter(payments));
-  router.use('/orders', createOrdersRouter(client, { customerCancellationEnabled, payments }));
+  router.use('/orders', createOrdersRouter(client, { customerCancellationEnabled, payments, notifications }));
   router.patch('/', async (req, res) => {
     const patch = profilePatch(req.body);
     const row = await database(() => client.from('profiles').update(patch).eq('id', req.auth.userId).select('id').maybeSingle());

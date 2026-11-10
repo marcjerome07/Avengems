@@ -58,6 +58,8 @@ create table products (
   sizes text[] not null default '{}',
   default_size text,
   short_description text, details text,
+  -- Ordered, first = cover (max 5 via the admin API). Entries are Storage object paths in the
+  -- public 'product-images' bucket (products/<id>/<uuid>.<ext>) or legacy https:// URLs.
   images text[] not null default '{}',
   added_at date not null default current_date,
   archived boolean not null default false
@@ -74,7 +76,10 @@ create table orders (
   ship_address text not null, ship_city text not null,
   ship_province text not null, ship_postal_code text not null,
   subtotal numeric(10,2) not null, customization_total numeric(10,2) not null,
-  shipping_fee numeric(10,2) not null, total numeric(10,2) not null
+  shipping_fee numeric(10,2) not null, total numeric(10,2) not null,
+  tracking_number text check (tracking_number is null or length(tracking_number) between 4 and 50),
+  tracking_carrier text check (tracking_carrier is null or tracking_carrier in ('J&T Express','LBC','Ninja Van','Flash Express','Other')),
+  cancellation_reason text check (cancellation_reason is null or length(cancellation_reason) between 1 and 500)
 );
 create index on orders (user_id, created_at desc);
 
@@ -89,6 +94,38 @@ create table order_items (
   unit_price numeric(10,2) not null, customized boolean not null default false,
   quantity int not null check (quantity between 1 and 10)
 );
+
+-- Order status emails (see db/proposed/order-notifications.sql). Unique per order/status/recipient/kind.
+create table order_notifications (
+  id bigint generated always as identity primary key,
+  order_id text not null references orders (id) on delete cascade,
+  status text not null check (status in ('Pending','Processing','Shipped','Delivered','Cancelled')),
+  recipient text not null check (length(recipient) between 3 and 254),
+  kind text not null default 'customer' check (kind in ('customer','store')),
+  sent_at timestamptz,
+  error text check (error is null or length(error) <= 300),
+  attempts int not null default 0 check (attempts >= 0),
+  channel text check (channel is null or channel in ('smtp','console')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint order_notifications_once unique (order_id, status, recipient, kind)
+);
+create index order_notifications_unsent on order_notifications (id) where sent_at is null;
+
+-- In-app customer notifications (see db/proposed/customer-notifications.sql). One per order status.
+create table customer_notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references profiles (id) on delete cascade,
+  order_id text not null references orders (id) on delete cascade,
+  type text not null check (type in ('placed','processing','shipped','delivered','cancelled')),
+  title text not null check (length(title) between 1 and 200),
+  body text not null check (length(body) between 1 and 1000),
+  read_at timestamptz,
+  created_at timestamptz not null default now(),
+  constraint customer_notifications_once unique (order_id, type)
+);
+create index customer_notifications_user_recent on customer_notifications (user_id, created_at desc, id desc);
+create index customer_notifications_user_unread on customer_notifications (user_id) where read_at is null;
 
 create table wishlist_items (
   user_id uuid references profiles on delete cascade,
@@ -114,6 +151,8 @@ alter table orders enable row level security;
 alter table order_items enable row level security;
 alter table wishlist_items enable row level security;
 alter table store_settings enable row level security;
+alter table order_notifications enable row level security;
+alter table customer_notifications enable row level security;
 
 create policy "public read" on collections for select using (true);
 create policy "public read" on products for select using (not archived);

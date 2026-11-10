@@ -13,8 +13,15 @@ export const getRecentOrders = async (limit = 6) => (await getDashboardData()).r
 export const getBestSellers = async (limit = 5) => (await getDashboardData()).best.slice(0, limit);
 export const getAllOrders = async ({ status = 'All' } = {}) => (await get(`orders?status=${encodeURIComponent(status)}`)).items;
 export const getAdminOrder = (id) => get(`orders/${encodeURIComponent(id)}`);
-export const updateOrderStatus = (id, status, expectedStatus) => commerce.request(`/api/admin/orders/${encodeURIComponent(id)}/status`, { method: 'PATCH', body: { status, expectedStatus } });
-export const cancelOrder = (id) => commerce.request(`/api/admin/orders/${encodeURIComponent(id)}/cancel`, { method: 'POST', body: {} });
+export const ORDER_CARRIERS = ['J&T Express', 'LBC', 'Ninja Van', 'Flash Express', 'Other'];
+/** `tracking` ({ trackingNumber, trackingCarrier }) is only sent when marking an order Shipped. */
+export const updateOrderStatus = (id, status, expectedStatus, tracking) => commerce.request(`/api/admin/orders/${encodeURIComponent(id)}/status`,
+  { method: 'PATCH', body: { status, expectedStatus, ...(tracking ?? {}) } });
+export const cancelOrder = (id, reason) => commerce.request(`/api/admin/orders/${encodeURIComponent(id)}/cancel`,
+  { method: 'POST', body: reason?.trim() ? { reason: reason.trim() } : {} });
+export const getOrderNotifications = async (id) => (await get(`orders/${encodeURIComponent(id)}/notifications`)).items;
+export const resendOrderNotification = async (id) => (await commerce.request(`/api/admin/orders/${encodeURIComponent(id)}/notifications/resend`,
+  { method: 'POST', body: {} })).notification;
 export const getCustomerDirectory = () => get('customers');
 export const getCustomers = async () => (await getCustomerDirectory()).items;
 export const getAnalytics = () => get('analytics');
@@ -29,6 +36,11 @@ export function productUpdatePayload(original, values) {
   if (Object.hasOwn(patch, 'stock')) {
     if (patch.stock === Number(original.stock)) delete patch.stock;
     else patch.expectedStock = Number(original.stock);
+  }
+  if (Object.hasOwn(patch, 'images')) {
+    const before = (original.imageSources ?? []).map((item) => item.source);
+    if (patch.images.length === before.length && patch.images.every((source, i) => source === before[i])) delete patch.images;
+    else patch.expectedImages = before;
   }
   return patch;
 }
