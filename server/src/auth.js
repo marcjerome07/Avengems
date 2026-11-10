@@ -18,6 +18,19 @@ export function createAuthClientFactory({ url, publishableKey, clientFactory = c
   };
 }
 
+/** One isolated server-memory PKCE store per OAuth attempt; never browser storage. */
+export function createOAuthClientFactory({ url, publishableKey, clientFactory = createClient }) {
+  return () => {
+    if (!url || !publishableKey) throw authUnavailable();
+    const values = new Map();
+    return clientFactory(url, publishableKey, {
+      auth: { flowType: 'pkce', persistSession: true, autoRefreshToken: false, detectSessionInUrl: false,
+        storage: { getItem: (key) => values.get(key) ?? null,
+          setItem: (key, value) => { values.set(key, value); }, removeItem: (key) => { values.delete(key); } } },
+    });
+  };
+}
+
 /** A fresh, unprivileged client per verification; never sign users into the DB singleton. */
 export function createAccessTokenVerifier({ url, publishableKey, clientFactory = createClient }) {
   const createAuthClient = createAuthClientFactory({ url, publishableKey, clientFactory });

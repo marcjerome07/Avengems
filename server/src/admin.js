@@ -63,7 +63,7 @@ export function customerSummaries({ profiles, orders, addresses, emails }) {
   for (const order of orders) {
     const summary = history.get(order.user_id) ?? { count: 0, spent: 0, latest: null };
     summary.count++;
-    if (order.status !== 'Cancelled') summary.spent += cents(order.total);
+    if (order.status !== 'Cancelled' && (!order.payment_state || order.payment_state === 'paid')) summary.spent += cents(order.total);
     if (!Number.isSafeInteger(summary.spent)) throw new ApiError(503, 'REPORT_UNAVAILABLE', 'Report amount exceeds supported precision.');
     if (!summary.latest || String(order.created_at) > String(summary.latest.created_at)
       || (order.created_at === summary.latest.created_at && order.id < summary.latest.id)) summary.latest = order;
@@ -163,7 +163,7 @@ export function reports({ orders, products, profiles, collections }, months = 6,
     if (!Number.isSafeInteger(total)) throw new ApiError(503, 'REPORT_UNAVAILABLE', 'Report amount exceeds supported precision.');
     return total;
   };
-  const active = orders.filter((order) => order.status !== 'Cancelled');
+  const active = orders.filter((order) => order.status !== 'Cancelled' && (!order.payment_state || order.payment_state === 'paid'));
   const sales = Array.from({ length: months }, (_, index) => {
     const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - months + 1 + index, 1));
     const matching = active.filter((order) => String(order.created_at).slice(0, 7) === date.toISOString().slice(0, 7));

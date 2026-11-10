@@ -34,7 +34,7 @@ export function checkoutBody(body) {
     const row = addressPatch({ ...body.shipping, fullName: customer.name, phone: customer.phone }, true);
     shipping = { address: row.address, city: row.city, province: row.province, postalCode: row.postal_code };
   }
-  if (!['gcash', 'maya', 'cod', 'card'].includes(body.paymentMethod)) invalid('Choose a supported demo payment method.');
+  if (!['gcash', 'maya', 'cod', 'card'].includes(body.paymentMethod)) invalid('Choose a supported payment method.');
   return { items, customer, shipping, paymentMethod: body.paymentMethod };
 }
 export function cents(value) {
@@ -92,6 +92,7 @@ export async function quoteCart(client, requested) {
 export function toOrder(row) {
   return { id: row.id, reference: typeof row.order_reference === 'string' && /^AVG-\d{4}-\d{4,19}$/.test(row.order_reference) ? row.order_reference : null,
     createdAt: row.created_at, status: row.status, paymentMethod: row.payment_method,
+    ...(row.payment_state ? { payment: { status: row.payment_state } } : {}),
     customer: { name: row.customer_name, email: row.customer_email, phone: row.customer_phone },
     shipping: { address: row.ship_address, city: row.ship_city, province: row.ship_province, postalCode: row.ship_postal_code },
     subtotal: Number(row.subtotal), customizationTotal: Number(row.customization_total), shippingFee: Number(row.shipping_fee), total: Number(row.total),

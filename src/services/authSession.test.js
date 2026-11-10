@@ -19,6 +19,8 @@ const { ToastProvider } = await vite.ssrLoadModule('/src/context/ToastContext.js
 const { default: ProtectedRoute } = await vite.ssrLoadModule('/src/components/routing/ProtectedRoute.jsx');
 const { default: AdminRoute } = await vite.ssrLoadModule('/src/components/routing/AdminRoute.jsx');
 const { default: Login } = await vite.ssrLoadModule('/src/pages/auth/Login.jsx');
+const { default: Signup } = await vite.ssrLoadModule('/src/pages/auth/SignUp.jsx');
+const { default: GoogleLoginButton } = await vite.ssrLoadModule('/src/components/auth/GoogleLoginButton.jsx');
 const user = Object.freeze({ id: '11111111-1111-4111-8111-111111111111', name: 'Customer',
   email: 'customer@example.test', role: 'customer', phone: '', verified: true, createdAt: '2026-10-30T00:00:00Z' });
 const deferred = () => { let resolve; const promise = new Promise((done) => { resolve = done; }); return { resolve, promise }; };
@@ -57,6 +59,65 @@ test('invalid passwords and network failures reject without mock fallback or pas
   calls = mockApi(t, [{ url: '/api/auth/csrf', error: new TypeError('offline') }]);
   await assert.rejects(service.login(user.email, 'wrong'), { code: 'NETWORK_ERROR' });
   assert.equal(calls.length, 1);
+});
+
+test('both Remember Me values reach cookie login through context state; a fresh page restores only server identity', async (t) => {
+  for (const role of ['customer', 'admin']) for (const remember of [false, true]) {
+    const identity = { ...user, role };
+    const calls = mockApi(t, [csrf(), { url: '/api/auth/login', body: { user: identity } },
+      { url: '/api/me', body: identity }]);
+    const initial = createAuthSession(service);
+    await initial.login(user.email, 'fabricated-password', remember);
+    assert.deepEqual(JSON.parse(calls[1].options.body), { email: user.email, password: 'fabricated-password', remember });
+    const reloaded = createAuthSession(service);
+    assert.equal(reloaded.getSnapshot().user, null);
+    await reloaded.restore();
+    assert.equal(reloaded.getSnapshot().status, 'authenticated');
+    assert.equal(reloaded.getSnapshot().user.role, role);
+    assert.equal(calls.length, 3, 'Reload checks cookies without replaying credentials or reporting activity');
+  }
+});
+
+test('Google initiation preserves Remember Me and uses CSRF cookies without browser token storage', async (t) => {
+  const previous = globalThis.window;
+  const storage = { getItem: () => assert.fail('No browser token reads'), setItem: () => assert.fail('No browser token writes') };
+  globalThis.window = { localStorage: storage, sessionStorage: storage };
+  t.after(() => { globalThis.window = previous; });
+  for (const remember of [false, true]) {
+    const url = 'https://provider.example.test/auth/v1/authorize?provider=google&code_challenge=fabricated&code_challenge_method=s256';
+    const calls = mockApi(t, [csrf(), { url: '/api/auth/google', body: { url } }]);
+    assert.equal(await sessionService.startGoogleLogin(remember), url);
+    assert.deepEqual(JSON.parse(calls[1].options.body), { remember });
+    assert.equal(calls[1].options.headers['X-CSRF-Token'], 'fabricated-csrf');
+    assert.equal(calls[1].options.headers.Authorization, undefined);
+  }
+  mockApi(t, [csrf(), { url: '/api/auth/google/cancel', body: { ok: true } }]);
+  assert.deepEqual(await sessionService.cancelGoogleLogin(), { ok: true });
+});
+
+test('Google network errors are not replayed and unsafe navigation responses are rejected', async (t) => {
+  const calls = mockApi(t, [csrf(), { url: '/api/auth/google', error: new TypeError('offline') }]);
+  await assert.rejects(sessionService.startGoogleLogin(true), { code: 'NETWORK_ERROR' });
+  assert.equal(calls.length, 2);
+  for (const url of ['javascript:alert(1)', 'https://attacker.example/', undefined]) {
+    mockApi(t, [csrf(), { url: '/api/auth/google', body: { url } }]);
+    await assert.rejects(sessionService.startGoogleLogin(), { code: 'GOOGLE_UNAVAILABLE' });
+  }
+});
+
+test('Google callback errors are accessible, sanitized and retryable; login/signup both offer Google', async () => {
+  for (const code of ['denied', 'expired', 'invalid', 'failed']) {
+    const html = renderToString(h(MemoryRouter, { initialEntries: [`/login?oauth=${code}&error_description=ATTACKER_TEXT`] },
+      h(GoogleLoginButton)));
+    assert.match(html, /role="alert"/);
+    assert.match(html, /Continue with Google/);
+    assert.doesNotMatch(html, /ATTACKER_TEXT|disabled=""/);
+  }
+  const state = createAuthSession({ getCurrentUser: async () => null });
+  await state.restore();
+  assert.match(render(state, Login), /Continue with Google/);
+  assert.match(render(state, Signup), /Continue with Google/);
+  assert.match(render(state, Signup), /Remember me for Google sign-in/);
 });
 
 test('session restoration ignores forged browser storage and uses only server identity', async (t) => {

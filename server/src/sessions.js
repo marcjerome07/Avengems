@@ -149,7 +149,9 @@ export function createCookieSessions({ createAuthClient, loadUser, origin, produ
     if (!data?.user?.id || !session || !session.access_token || !session.refresh_token
       || session.access_token.length > 3500 || session.refresh_token.length > 3500
       || !Number.isFinite(session.expires_at) || session.expires_at * 1000 <= now()) throw authUnavailable();
-    return session;
+    // OAuth responses may also contain Google provider tokens. App sessions need
+    // only Supabase credentials; do not retain extra provider scopes/credentials.
+    return { access_token: session.access_token, refresh_token: session.refresh_token, expires_at: session.expires_at };
   }
   function writeSession(res, record) {
     if (record.closed || Math.min(record.deadline, record.idleDeadline) <= now()) { clear(res); throw unauthorized(); }
@@ -187,22 +189,26 @@ export function createCookieSessions({ createAuthClient, loadUser, origin, produ
       if (rejected(result.error)) throw new ApiError(401, 'INVALID_CREDENTIALS', 'Incorrect email or password.');
       throw authUnavailable();
     }
-    const session = checkedSession(result.data);
-    attempt.userId = result.data.user.id;
+    return establish(req, res, attempt, result.data, body.remember === true);
+  }
+  async function establish(req, res, attempt, data, remember, active = () => true) {
+    const session = checkedSession(data);
+    attempt.userId = data.user.id;
+    attempt.email = data.user.email?.toLowerCase();
     let user;
-    try { user = await loadUser(result.data.user); }
+    try { user = await loadUser(data.user); }
     catch (error) {
       // Do not retain a newly created provider session if its profile is unusable.
       await call(() => revoke(session));
       throw error;
     }
-    if (attempt.invalidated) { await call(() => revoke(session)); throw unauthorized(); }
+    if (attempt.invalidated || !active()) { await call(() => revoke(session)); throw unauthorized(); }
     const old = sessions.get(readCookie(req, 'sid'));
     if (old) { old.closed = true; sessions.delete(old.id); }
     if (sessions.size >= maxSessions) { await call(() => revoke(session)); throw authUnavailable(); }
     const record = { id: random(), publicId: random(), idleDeadline: now() + SESSION_IDLE_MS, session, userId: user.id, csrf: newCsrf(),
-      remember: body.remember === true, closed: false, pending: null, lastRefresh: -Infinity,
-      deadline: now() + (body.remember ? 30 * 24 : 12) * 60 * 60 * 1000 };
+      remember, closed: false, pending: null, lastRefresh: -Infinity,
+      deadline: now() + (remember ? 30 * 24 : 12) * 60 * 60 * 1000 };
     sessions.set(record.id, record);
     writeSession(res, record);
     return { user, csrfToken: record.csrf, session: timing(record) };
@@ -214,10 +220,28 @@ export function createCookieSessions({ createAuthClient, loadUser, origin, produ
     try { return await performLogin(req, res, attempt); }
     finally { pendingLogins.delete(attempt); }
   }
+  function beginProviderLogin(req) {
+    prune();
+    if (pendingLogins.size >= maxSessions || sessions.size >= maxSessions) throw authUnavailable();
+    // Capture the initiating session because Strict cookies are absent on the
+    // cross-site callback. Never accept an old session ID from callback input.
+    const id = readCookie(req, 'sid');
+    const source = { headers: { cookie: id ? `${names.sid}=${encodeURIComponent(id)}` : '' } };
+    const attempt = { invalidated: false, provider: true };
+    pendingLogins.add(attempt);
+    return {
+      identify: (user) => { attempt.userId = user?.id; attempt.email = user?.email?.toLowerCase(); },
+      complete: (res, data, remember, active) => establish(source, res, attempt, data, remember, active),
+      cancel: () => { attempt.invalidated = true; pendingLogins.delete(attempt); },
+    };
+  }
   function invalidateUser(userId, email) {
     const pending = [];
     for (const attempt of pendingLogins) {
-      if (attempt.userId === userId || (email && attempt.email === email)) attempt.invalidated = true;
+      // An OAuth attempt has no trustworthy subject until code exchange. Close
+      // unresolved provider attempts conservatively during account revocation.
+      if (attempt.userId === userId || (email && attempt.email === email)
+        || (attempt.provider && !attempt.userId)) attempt.invalidated = true;
     }
     for (const [id, record] of sessions) {
       if (record.userId !== userId) continue;
@@ -318,5 +342,5 @@ export function createCookieSessions({ createAuthClient, loadUser, origin, produ
     return { ok: true };
   }
   return { csrf, protect, rateLimit, login, refresh, logout, activity, checkIdle, metadata, requireSession, accessToken, clearAccess,
-    invalidateUser, clearSessionCookies: clear };
+    invalidateUser, beginProviderLogin, clearSessionCookies: clear };
 }

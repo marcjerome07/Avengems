@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import OrderReference from '../../components/account/OrderReference';
+import { PaymentStatus } from '../../components/account/PaymentStatus';
 import { orderReference } from '../../utils/orderReference';
 import { Search, PackageOpen } from 'lucide-react';
 import AdminHeader from '../../components/admin/AdminHeader';
@@ -14,7 +15,7 @@ import { StatusBadge } from '../../components/ui/Badge';
 import { useToast } from '../../context/useToast';
 import useServiceData from '../../hooks/useServiceData';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
-import { getAllOrders, updateOrderStatus, cancelOrder, getAdminOrder, FULFILLMENT_NEXT } from '../../services/adminService';
+import { getAllOrders, updateOrderStatus, cancelOrder, getAdminOrder, FULFILLMENT_NEXT, reconcileAdminPayment, closeAdminPayment } from '../../services/adminService';
 import { ORDER_STATUSES, PAYMENT_LABELS } from '../../services/orderService';
 import { formatDate, formatPrice } from '../../utils/formatPrice';
 
@@ -30,6 +31,19 @@ export default function AdminOrders() {
   const [status, setStatus] = useState('All');
   const [query, setQuery] = useState('');
   const [savingId, setSavingId] = useState(null);
+  const [providerSessionId, setProviderSessionId] = useState('');
+  async function verifyPayment(close = false) {
+    if (!detail || savingId) return;
+    setSavingId(detail.id);
+    try {
+      if (close) await closeAdminPayment(detail.id);
+      else await reconcileAdminPayment(detail.id, providerSessionId.trim());
+      const updated = await getAdminOrder(detail.id);
+      setDetail(updated); setData((list) => list.map((order) => order.id === updated.id ? updated : order));
+      showToast('Payment state verified.', { type: 'info' });
+    } catch (err) { showToast(err.message, { type: 'error' }); }
+    finally { setSavingId(null); }
+  }
 
   const orders = useMemo(() => data ?? [], [data]);
   const rows = useMemo(() => {
@@ -56,7 +70,7 @@ export default function AdminOrders() {
 
   async function viewOrder(id) {
     const request = ++detailRequest.current;
-    setDetailId(id); setDetail(null); setDetailError(null);
+    setDetailId(id); setDetail(null); setDetailError(null); setProviderSessionId('');
     try { const order = await getAdminOrder(id); if (request === detailRequest.current) setDetail(order); }
     catch (err) { if (request === detailRequest.current) setDetailError(err); }
   }
@@ -138,7 +152,7 @@ export default function AdminOrders() {
                     </span>
                   </td>
                   <td data-label="Date">{formatDate(o.createdAt)}</td>
-                  <td data-label="Payment">{PAYMENT_LABELS[o.paymentMethod]}</td>
+                  <td data-label="Payment">{PAYMENT_LABELS[o.paymentMethod]}<div><PaymentStatus order={o} /></div></td>
                   <td data-label="Total" className="num strong">
                     {formatPrice(o.total)}
                   </td>
@@ -153,7 +167,7 @@ export default function AdminOrders() {
                       id={`st-${o.id}`}
                       className="status-select"
                       value={o.status}
-                      disabled={Boolean(savingId) || !FULFILLMENT_NEXT[o.status]?.length}
+                      disabled={Boolean(savingId) || !FULFILLMENT_NEXT[o.status]?.length || (o.paymentMethod !== 'cod' && o.payment?.status !== 'paid')}
                       onChange={(e) => changeStatus(o, e.target.value)}
                     >
                       {[o.status, ...(FULFILLMENT_NEXT[o.status] ?? [])].map((s) => (
@@ -162,7 +176,7 @@ export default function AdminOrders() {
                         </option>
                       ))}
                     </select>
-                    {['Pending', 'Processing'].includes(o.status) && <Button size="sm" variant="ghost" disabled={Boolean(savingId)} onClick={() => setCancelling(o)}>Cancel order</Button>}
+                    {['Pending', 'Processing'].includes(o.status) && !o.payment && <Button size="sm" variant="ghost" disabled={Boolean(savingId)} onClick={() => setCancelling(o)}>Cancel order</Button>}
                   </td>
                 </tr>
               ))}
@@ -176,7 +190,14 @@ export default function AdminOrders() {
         {detailError ? <AdminDataState error={detailError} onRetry={() => viewOrder(detailId)} /> : !detail && <p role="status">Loading order details…</p>}
         {detail && <><p>{detail.customer.name} · {detail.customer.email} · {detail.customer.phone}</p>
           <p>{detail.shipping.address}, {detail.shipping.city}, {detail.shipping.province} {detail.shipping.postalCode}</p>
-          <p>{detail.status} · {PAYMENT_LABELS[detail.paymentMethod]} (demo payment)</p><MiniItems items={detail.items} /><TotalsList totals={detail} /></>}
+          <p>{detail.status} · {PAYMENT_LABELS[detail.paymentMethod]} · <PaymentStatus order={detail} /></p>
+          {detail.payment && <section aria-label="Test payment management">
+            {['creating','unknown'].includes(detail.payment.status) && <Input label="Test provider session ID for reconciliation" value={providerSessionId} onChange={(event) => setProviderSessionId(event.target.value)} />}
+            <Button disabled={Boolean(savingId)} onClick={() => verifyPayment()}>Reconcile payment and refunds</Button>
+            {['created','pending'].includes(detail.payment.status) && <Button variant="outline" disabled={Boolean(savingId)} onClick={() => verifyPayment(true)}>Close test payment</Button>}
+            <p>Paid cancellations and refunds require separate review. Refund reconciliation never restores stock.</p>
+          </section>}
+          <MiniItems items={detail.items} /><TotalsList totals={detail} /></>}
       </Modal>
       <Modal open={Boolean(cancelling)} onClose={() => setCancelling(null)} title="Cancel and restock order?"
         footer={<><Button onClick={() => setCancelling(null)} disabled={Boolean(savingId)}>Keep order</Button><Button variant="danger" loading={Boolean(savingId)} onClick={confirmCancellation}>Cancel and restock</Button></>}>

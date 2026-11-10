@@ -4,10 +4,6 @@ import {
   ArrowLeft,
   ArrowRight,
   ShoppingBag,
-  Smartphone,
-  Wallet,
-  Banknote,
-  CreditCard,
   Info,
   Lock,
   ChevronDown,
@@ -20,13 +16,17 @@ import Select from '../components/ui/Select';
 import Button from '../components/ui/Button';
 import EmptyState from '../components/ui/EmptyState';
 import { QuoteTotals, MiniItems } from '../components/cart/OrderSummary';
+import PaymentMethods from '../components/cart/PaymentMethods';
 import { useCart } from '../context/useCart';
+import useCartQuote from '../hooks/useCartQuote';
+import { selectedCartItems } from '../services/cartService';
 import { useAuth } from '../context/useAuth';
 import { useToast } from '../context/useToast';
 import { placeOrder, orderRequest, PAYMENT_LABELS } from '../services/orderService';
 import { getAddresses } from '../services/authService';
 import { pendingCheckout, beginCheckout, finishCheckout, definitiveCheckoutFailure, confirmCheckoutAttempt } from '../services/checkoutAttempts';
 import { authSession } from '../services/authSession';
+import { paymentMethods, startPayment } from '../services/paymentService';
 import { formatPrice } from '../utils/formatPrice';
 import {
   runValidators,
@@ -35,23 +35,11 @@ import {
   validatePhone,
   validateRequired,
   validatePostalCode,
-  validateCardNumber,
-  validateExpiry,
-  validateCvv,
   formatPhone,
-  formatCardNumber,
-  formatExpiry,
 } from '../utils/validators';
 import './Checkout.css';
 
 const STEPS = ['Information', 'Shipping', 'Payment', 'Review'];
-
-const PAYMENT_OPTIONS = [
-  { value: 'gcash', label: 'GCash', icon: Smartphone, note: 'Pay with your GCash wallet' },
-  { value: 'maya', label: 'Maya', icon: Wallet, note: 'Pay with your Maya wallet' },
-  { value: 'cod', label: 'Cash on Delivery', icon: Banknote, note: 'Pay when your order arrives' },
-  { value: 'card', label: 'Credit/Debit Card', icon: CreditCard, note: 'Visa, Mastercard, JCB' },
-];
 
 const SCHEMAS = {
   0: {
@@ -67,17 +55,13 @@ const SCHEMAS = {
   },
   2: {
     paymentMethod: (v) => (v ? '' : 'Please choose a payment method.'),
-    cardName: (v, all) => (all.paymentMethod === 'card' ? validateName(v).replace('Full name', 'Cardholder name') : ''),
-    cardNumber: (v, all) => (all.paymentMethod === 'card' ? validateCardNumber(v) : ''),
-    expiry: (v, all) => (all.paymentMethod === 'card' ? validateExpiry(v) : ''),
-    cvv: (v, all) => (all.paymentMethod === 'card' ? validateCvv(v) : ''),
   },
 };
 
-const EMPTY_CARD = { cardName: '', cardNumber: '', expiry: '', cvv: '' };
-
 export default function Checkout() {
-  const { items, totals, quotedItems, quoteLoading, quoteError, reloadQuote, completeCheckout } = useCart();
+  const cart = useCart();
+  const { items, completeCheckout } = cart;
+  const selectedItems = selectedCartItems(items);
   const { user } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
@@ -85,10 +69,21 @@ export default function Checkout() {
   const [pending, setPending] = useState(() => {
     try { return pendingCheckout(user.id); } catch (error) { return { invalid: true, message: error.message }; }
   });
+  // A retry belongs to its saved request, even if the shopper later changes the
+  // cart selection. Never quote/display a different basket for that retry.
+  const pendingQuote = useCartQuote(pending?.request?.items ?? []);
+  const { totals, quotedItems, quoteLoading, quoteError, reloadQuote } = pending ? {
+    totals: pendingQuote.quote?.totals ?? null, quotedItems: pendingQuote.quote?.items ?? null,
+    quoteLoading: pendingQuote.loading, quoteError: pendingQuote.error, reloadQuote: pendingQuote.reload,
+  } : cart;
   const [placementError, setPlacementError] = useState(null);
   const [savedAddressId, setSavedAddressId] = useState(pending?.request?.shipping?.addressId ?? '');
-  const ready = Boolean(totals) && !quoteLoading && !quoteError;
-  const displayItems = quotedItems ?? items;
+  const ready = Boolean(totals) && !quoteLoading && !quoteError && (Boolean(pending) || selectedItems.length > 0);
+  const displayItems = quotedItems ?? (pending?.request?.items ? pending.request.items.map((line) => {
+    const saved = items.find((item) => item.productId === line.productId && (item.color ?? null) === line.color && (item.size ?? null) === line.size);
+    return { ...saved, ...line, name: saved?.name ?? line.productId,
+      lineId: saved?.lineId ?? JSON.stringify([line.productId, line.color, line.size]) };
+  }) : selectedItems);
 
   const [step, setStep] = useState(0);
   const [values, setValues] = useState({
@@ -100,7 +95,6 @@ export default function Checkout() {
     province: pending?.request?.shipping?.province ?? '',
     postalCode: pending?.request?.shipping?.postalCode ?? '',
     paymentMethod: pending?.request?.paymentMethod ?? '',
-    ...EMPTY_CARD,
   });
   const [errors, setErrors] = useState({});
   const [addresses, setAddresses] = useState([]);
@@ -108,6 +102,12 @@ export default function Checkout() {
   const [addressVersion, setAddressVersion] = useState(0);
   const [placing, setPlacing] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [methods, setMethods] = useState(['cod']);
+  useEffect(() => {
+    let active = true;
+    paymentMethods().then((result) => { if (active && Array.isArray(result.methods)) setMethods(result.methods); }).catch(() => {});
+    return () => { active = false; };
+  }, [user.id]);
 
   // Pre-fill shipping from the default saved address.
   useEffect(() => {
@@ -153,6 +153,7 @@ export default function Checkout() {
 
   function validateStep(s) {
     const result = runValidators(values, SCHEMAS[s] ?? {});
+    if (s === 2 && !methods.includes(values.paymentMethod)) result.paymentMethod = 'Choose an available payment method.';
     setErrors(result);
     if (Object.keys(result).length) {
       // Move focus to the first invalid field for keyboard and screen reader users.
@@ -200,9 +201,9 @@ export default function Checkout() {
     setPlacing(true);
     setPlacementError(null);
     try {
-      // Card details are validated above and then discarded. Only the method name is sent.
+      // Online payment details are collected only on Xendit hosted checkout.
       const attempt = pending ?? beginCheckout(user.id, orderRequest({
-        items,
+        items: selectedItems,
         customer: { name: values.fullName.trim(), email: values.email.trim(), phone: values.phone.trim() },
         shipping: savedAddressId ? { addressId: savedAddressId } : {
           address: values.address.trim(),
@@ -214,13 +215,17 @@ export default function Checkout() {
       }));
       if (attempt.owner !== user.id) throw new Error('Sign in to the original account before retrying this order.');
       setPending(attempt);
-      setValues((value) => ({ ...value, ...EMPTY_CARD }));
       const order = await confirmCheckoutAttempt(attempt, { placeOrder, completeCart: completeCheckout,
         isCurrent: () => authSession.getSnapshot().status === 'authenticated' && authSession.getSnapshot().user?.id === attempt.owner });
       setPending(null);
-      setValues((v) => ({ ...v, ...EMPTY_CARD }));
       navigate(`/order-confirmation/${order.id}`, { replace: true });
-      showToast(`Order ${order.id} placed. Thank you!`, { type: 'success' });
+      if (order.paymentMethod !== 'cod') {
+        try {
+          const result = await startPayment(order.id, attempt.owner);
+          if (result.checkoutUrl) window.location.assign(result.checkoutUrl);
+          else showToast('Order saved. Check its payment status before trying again.', { type: 'info' });
+        } catch (error) { showToast(error.message, { type: 'error' }); }
+      } else showToast('Order placed. Thank you!', { type: 'success' });
     } catch (err) {
       if (definitiveCheckoutFailure(err)) { finishCheckout(user.id); setPending(null); }
       if (['INSUFFICIENT_STOCK', 'PRODUCT_UNAVAILABLE', 'INVALID_CUSTOMIZATION'].includes(err.code)) reloadQuote();
@@ -229,12 +234,13 @@ export default function Checkout() {
     } finally { submitting.current = false; setPlacing(false); }
   }
 
-  if (!items.length && !pending) {
+  if (!selectedItems.length && !pending) {
     return (
       <PageContainer title="Checkout">
         <PageHeader title="Checkout" />
-        <EmptyState icon={ShoppingBag} title="Your cart is empty" message="Add a piece or two before checking out.">
-          <Button to="/shop">Shop the collection</Button>
+        <EmptyState icon={ShoppingBag} title={items.length ? 'No items selected' : 'Your cart is empty'}
+          message={items.length ? 'Select at least one cart item before checking out.' : 'Add a piece or two before checking out.'}>
+          <Button to={items.length ? '/cart' : '/shop'}>{items.length ? 'Select cart items' : 'Shop the collection'}</Button>
         </EmptyState>
       </PageContainer>
     );
@@ -354,29 +360,7 @@ export default function Checkout() {
               <h2 id="step-title" className="checkout-step__title">
                 Payment method
               </h2>
-              <div
-                className="pay-options"
-                role="radiogroup"
-                aria-label="Payment method"
-                aria-invalid={errors.paymentMethod ? 'true' : undefined}
-              >
-                {PAYMENT_OPTIONS.map(({ value, label, icon: Icon, note }) => (
-                  <label key={value} className={`pay-option ${values.paymentMethod === value ? 'is-selected' : ''}`}>
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value={value}
-                      checked={values.paymentMethod === value}
-                      onChange={() => setField('paymentMethod', value)}
-                    />
-                    <Icon size={22} strokeWidth={1.4} aria-hidden="true" />
-                    <span className="pay-option__text">
-                      <span className="pay-option__label">{label}</span>
-                      <span className="pay-option__note">{note}</span>
-                    </span>
-                  </label>
-                ))}
-              </div>
+              <PaymentMethods methods={methods} selected={values.paymentMethod} onChange={(value) => setField('paymentMethod', value)} />
               {errors.paymentMethod && (
                 <p className="field__error" role="alert">
                   {errors.paymentMethod}
@@ -386,46 +370,14 @@ export default function Checkout() {
               {(values.paymentMethod === 'gcash' || values.paymentMethod === 'maya') && (
                 <p className="checkout-note checkout-note--info">
                   <Info size={18} strokeWidth={1.5} aria-hidden="true" />
-                  Demo payment with {paymentLabel}. No wallet redirect or real charge will occur.
+                  Pay with {paymentLabel} on Xendit hosted checkout in Test Mode.
                 </p>
-              )}
-
-              {values.paymentMethod === 'card' && (
-                <div className="form-grid form-grid--2 card-fields">
-                  <Input label="Cardholder Name" autoComplete="cc-name" className="span-2" {...field('cardName')} />
-                  <Input
-                    label="Card Number"
-                    inputMode="numeric"
-                    autoComplete="cc-number"
-                    placeholder="1234 5678 9012 3456"
-                    className="span-2"
-                    {...field('cardNumber')}
-                    onChange={(e) => setField('cardNumber', formatCardNumber(e.target.value))}
-                  />
-                  <Input
-                    label="Expiration (MM/YY)"
-                    inputMode="numeric"
-                    autoComplete="cc-exp"
-                    placeholder="MM/YY"
-                    {...field('expiry')}
-                    onChange={(e) => setField('expiry', formatExpiry(e.target.value))}
-                  />
-                  <Input
-                    label="CVV"
-                    inputMode="numeric"
-                    autoComplete="cc-csc"
-                    placeholder="123"
-                    maxLength={4}
-                    {...field('cvv')}
-                    onChange={(e) => setField('cvv', e.target.value.replace(/\D/g, '').slice(0, 4))}
-                  />
-                </div>
               )}
 
               <p className="checkout-note checkout-note--warn">
                 <Lock size={18} strokeWidth={1.5} aria-hidden="true" />
                 <span>
-                  <strong>Demo payment only.</strong> Use test details. No real payment is processed and card details are never sent or stored.
+                  <strong>Test Mode only.</strong> Online payments remain unavailable until validated setup. Card and wallet details are collected only by Xendit.
                 </span>
               </p>
             </section>
@@ -478,7 +430,7 @@ export default function Checkout() {
                   </div>
                   <p>
                     {paymentLabel}
-                    {values.paymentMethod === 'card' && values.cardNumber && ` ending in ${values.cardNumber.replace(/\D/g, '').slice(-4)}`}
+
                   </p>
                 </div>
               </div>

@@ -24,7 +24,7 @@ export function createCartQuoteRouter(client, cookieSessions) {
   return router;
 }
 // /api/me has already verified customer identity, no-store, CSRF and Origin.
-export function createOrdersRouter(client, { customerCancellationEnabled = false } = {}) {
+export function createOrdersRouter(client, { customerCancellationEnabled = false, payments } = {}) {
   const router = Router();
   const eligible = (row) => ['Pending', 'Processing'].includes(row.status) && row.checkout_key
     && row.checkout_request && typeof row.checkout_request === 'object' && !Array.isArray(row.checkout_request);
@@ -47,7 +47,7 @@ export function createOrdersRouter(client, { customerCancellationEnabled = false
     if (!/^[A-Za-z0-9-]{1,100}$/.test(req.params.id)) invalid('Invalid order reference.');
     const row = await database(() => client.from('orders').select('*, items:order_items(*)').eq('user_id', req.auth.userId).eq('id', req.params.id).maybeSingle());
     if (!row) throw new ApiError(404, 'NOT_FOUND', 'Order not found.');
-    res.json({ ...toOrder(row), canCancel: Boolean(eligible(row)) && await ready() });
+    res.json({ ...toOrder(row), canCancel: !row.payment_state && Boolean(eligible(row)) && await ready() });
   });
   router.post('/:id/cancel', async (req, res) => {
     only(req.body, []);
@@ -64,6 +64,7 @@ export function createOrdersRouter(client, { customerCancellationEnabled = false
       const errors = { P3001: [403, 'CUSTOMER_REQUIRED', 'A customer account is required.'],
         P3002: [404, 'NOT_FOUND', 'Order not found.'], P3003: [409, 'STATUS_CONFLICT', 'The order status changed. Reload the order.'],
         P3004: [409, 'CANCELLATION_INELIGIBLE', 'This order cannot be cancelled automatically.'],
+        P4002: [409, 'PAYMENT_CONFLICT', 'Close the online payment before cancelling this order.'],
         PGRST202: [503, 'CUSTOMER_CANCELLATION_DISABLED', 'Customer cancellation is awaiting database deployment.'],
         '42883': [503, 'CUSTOMER_CANCELLATION_DISABLED', 'Customer cancellation is awaiting database deployment.'] };
       const [status, code, message] = errors[result.error.code] ?? [503, 'CANCELLATION_UNAVAILABLE', 'Cancellation could not be confirmed. Reload the order before retrying.'];
@@ -77,6 +78,13 @@ export function createOrdersRouter(client, { customerCancellationEnabled = false
     const key = req.get('Idempotency-Key');
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(key ?? '')) invalid('Provide a UUID v4 Idempotency-Key.');
     const body = checkoutBody(req.body);
+    if (body.paymentMethod !== 'cod') {
+      if (!payments) throw new ApiError(503, 'PAYMENTS_DISABLED', 'Online payments are awaiting validated Test Mode deployment. Choose Cash on Delivery.');
+      // A disabled gateway still permits retrieval of an already-created order
+      // after a lost response. The existing RPC checks exact request/key equality.
+      const existing = await database(() => client.from('orders').select('id').eq('user_id', req.auth.userId).eq('checkout_key', key).maybeSingle());
+      if (!existing) await payments.requireMethod(body.paymentMethod);
+    }
     let result;
     try { result = await client.rpc('customer_checkout', { p_user_id: req.auth.userId, p_key: key, p_request: body }); }
     catch { throw new ApiError(503, 'CHECKOUT_UNAVAILABLE', 'Order placement could not be confirmed. Retry the same request.'); }
@@ -91,6 +99,8 @@ export function createOrdersRouter(client, { customerCancellationEnabled = false
         P1005: [404, 'NOT_FOUND', 'Shipping address not found.'],
         P1006: [400, 'VALIDATION_ERROR', 'Invalid checkout details.'],
         P1007: [403, 'CUSTOMER_REQUIRED', 'A customer profile is required.'],
+        P4000: [503, 'PAYMENTS_DISABLED', 'Online payments are disabled in the database. Choose Cash on Delivery.'],
+        P4001: [409, 'PAYMENT_CONFLICT', 'This order cannot start an online payment.'],
       };
       const [status, code, message] = errors[result.error.code] ?? [503, 'CHECKOUT_UNAVAILABLE', 'Order placement could not be confirmed. Retry the same request.'];
       throw new ApiError(status, code, message);
