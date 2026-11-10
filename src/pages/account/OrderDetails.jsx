@@ -10,6 +10,7 @@ import { useAuth } from '../../context/useAuth';
 import { getOrderById, getOrdersByUser, PAYMENT_LABELS } from '../../services/orderService';
 import CancelOrderAction from '../../components/account/CancelOrderAction';
 import OrderReference from '../../components/account/OrderReference';
+import PaymentActions from '../../components/account/PaymentStatus';
 import { orderReference } from '../../utils/orderReference';
 import useServiceData from '../../hooks/useServiceData';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
@@ -19,7 +20,7 @@ const FLOW = ['Pending', 'Processing', 'Shipped', 'Delivered'];
 
 export function Timeline({ status }) {
   if (status === 'Cancelled') {
-    return <p className="order-cancelled">This order was cancelled. No shipment is being prepared. No real payment or refund is processed in this demonstration.</p>;
+    return <p className="order-cancelled">This order was cancelled. No shipment is being prepared. Refunds are reviewed separately from inventory returns.</p>;
   }
   const current = FLOW.indexOf(status);
   return (
@@ -92,6 +93,7 @@ export default function OrderDetails() {
         <StatusBadge status={order.status} />
       </header>
       {notice && <p role="status">{notice}</p>}
+      <PaymentActions key={`${user.id}:${order.id}`} order={order} ownerId={user.id} onChanged={reload} />
       <CancelOrderAction key={`${user.id}:${order.id}`} order={order} ownerId={user.id} onCancelled={cancelled} onRefresh={reload} />
 
       <section className="panel" aria-label="Order progress">

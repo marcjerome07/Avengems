@@ -5,6 +5,7 @@ import Button from '../ui/Button';
 import Logo from './Logo';
 import MobileMenu from './MobileMenu';
 import SearchOverlay from './SearchOverlay';
+import NotificationBell from './NotificationBell';
 import { NAV_LINKS } from './navLinks';
 import { useAuth } from '../../context/useAuth';
 import { useCart } from '../../context/useCart';
@@ -111,7 +112,7 @@ function AccountMenu() {
 }
 
 export default function Navbar() {
-  const { user, loading } = useAuth();
+  const { user, isAdmin, loading } = useAuth();
   const { itemCount } = useCart();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -159,6 +160,8 @@ export default function Navbar() {
               <button type="button" className="nav-icon" aria-label="Search products" onClick={() => setSearchOpen(true)}>
                 <Search size={21} strokeWidth={1.4} />
               </button>
+              {/* Customers only; admin pages and the admin account are unchanged. */}
+              {!isAdmin && <NotificationBell key={user.id} />}
               <div className="navbar__account">
                 <AccountMenu />
               </div>

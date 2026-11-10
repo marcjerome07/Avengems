@@ -20,6 +20,20 @@ async function withApi(run, options = {}) {
   const tokens = new Map();
   const calls = { clients: 0, login: [], refresh: [], logout: [], profile: [], setSession: [] };
   const jar = new Map();
+  // Model browser persistence separately from values. Existing request tests can
+  // still supply stale/forged Maps without pretending they are browser jars.
+  const cookieExpiries = new Map();
+  function expireCookies() {
+    for (const [name, expiry] of cookieExpiries) {
+      if (expiry !== null && expiry <= time) { jar.delete(name); cookieExpiries.delete(name); }
+    }
+  }
+  function restartBrowser() {
+    expireCookies();
+    for (const [name, expiry] of cookieExpiries) {
+      if (expiry === null) { jar.delete(name); cookieExpiries.delete(name); }
+    }
+  }
   function makeSession() {
     sequence += 1;
     const session = { access_token: `fabricated-access-${sequence}`, refresh_token: `fabricated-refresh-${sequence}`,
@@ -94,6 +108,7 @@ async function withApi(run, options = {}) {
   await new Promise((resolve) => server.once('listening', resolve));
   async function send(path, { method = 'GET', body, headers = {}, cookies = jar,
     origin = true, csrf = true, update = true } = {}) {
+    if (cookies === jar) expireCookies();
     const requestHeaders = { ...headers };
     if (cookies) requestHeaders.Cookie = [...cookies].map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('; ');
     if (method === 'POST') {
@@ -111,6 +126,11 @@ async function withApi(run, options = {}) {
       const key = pair.slice(0, index);
       const value = decodeURIComponent(pair.slice(index + 1));
       if (!value) cookies.delete(key); else cookies.set(key, value);
+      if (cookies === jar) {
+        const maxAge = /; Max-Age=(-?\d+)/i.exec(cookie);
+        if (!value) cookieExpiries.delete(key);
+        else cookieExpiries.set(key, maxAge ? time + Number(maxAge[1]) * 1000 : null);
+      }
     }
     return { status: response.status, body: await response.json(), headers: response.headers, setCookies };
   }
@@ -118,7 +138,7 @@ async function withApi(run, options = {}) {
     await send('/api/auth/csrf');
     return send('/api/auth/login', { method: 'POST', body });
   }
-  try { await run({ send, login, jar, calls, advance: (ms) => { time += ms; }, options }); }
+  try { await run({ send, login, jar, calls, advance: (ms) => { time += ms; }, restartBrowser, options }); }
   finally { await new Promise((resolve) => server.close(resolve)); }
 }
 
@@ -164,6 +184,87 @@ test('input validation rejects identity/role injection and wrong types without c
     }
     assert.equal(calls.login.length, 0);
   });
+});
+
+test('browser restart restores only remembered sessions, including expired access, without renewing idle time', async () => {
+  for (const role of ['customer', 'admin']) for (const remember of [false, true]) {
+    await withApi(async ({ login, send, advance, restartBrowser, jar }) => {
+      const logged = await login({ email: user.email, password: 'fabricated', remember });
+      const initial = logged.body.session;
+      const sid = jar.get('avg_session');
+      advance(5 * 60 * 1000);
+      // A reload uses the same jar; expiration of access requires protected refresh.
+      assert.equal((await send('/api/me')).status, 401);
+      const refreshed = await send('/api/auth/refresh', { method: 'POST' });
+      assert.equal(refreshed.status, 200);
+      assert.equal(refreshed.body.session.idleExpiresAt, initial.idleExpiresAt);
+      // Every CSRF bootstrap must preserve the session's persistence preference.
+      const bootstrapped = await send('/api/auth/csrf');
+      assert.equal(/Max-Age=/.test(bootstrapped.setCookies[0]), remember);
+      assert.equal(/Expires=/.test(bootstrapped.setCookies[0]), remember);
+      advance(2 * 60 * 1000);
+      restartBrowser();
+      if (!remember) {
+        assert.equal(jar.size, 0);
+        assert.equal((await send('/api/me')).status, 401);
+        await send('/api/auth/csrf');
+        assert.equal((await send('/api/auth/refresh', { method: 'POST' })).status, 401);
+        return;
+      }
+      assert.equal(jar.get('avg_session'), sid);
+      assert.equal(jar.has('avg_access'), false, 'Provider access expiry is independent of browser restart');
+      assert.equal((await send('/api/me')).status, 401);
+      await send('/api/auth/csrf');
+      const restored = await send('/api/auth/refresh', { method: 'POST' });
+      assert.equal(restored.status, 200);
+      assert.equal(restored.body.user.role, role);
+      assert.equal(restored.body.session.key, initial.key);
+      assert.equal(restored.body.session.idleExpiresAt, initial.idleExpiresAt);
+      assert.equal(restored.body.session.absoluteExpiresAt, initial.absoluteExpiresAt);
+      assert.equal((await send('/api/me')).status, 200);
+      advance(13 * 60 * 1000);
+      restartBrowser();
+      assert.equal((await send('/api/me')).body.code, 'SESSION_IDLE_EXPIRED');
+      assert.equal(jar.size, 0);
+    }, { role, accessLifetimeSeconds: 60, enforceAppSession: true });
+  }
+});
+
+test('a new login replaces remembered cookies with session cookies when Remember Me is unchecked', async () => {
+  for (const role of ['customer', 'admin']) await withApi(async ({ login, send, jar, restartBrowser }) => {
+    await login({ email: user.email, password: 'fabricated', remember: true });
+    const previous = new Map(jar);
+    const result = await login({ email: user.email, password: 'fabricated', remember: false });
+    assert.equal(result.status, 200);
+    assert.ok(result.setCookies.every((cookie) => !/Max-Age=|Expires=/.test(cookie)));
+    assert.equal((await send('/api/me', { cookies: previous })).status, 401);
+    assert.equal((await send('/api/me')).status, 200);
+    restartBrowser();
+    assert.equal(jar.size, 0);
+    assert.equal((await send('/api/me')).status, 401);
+  }, { role, enforceAppSession: true });
+});
+
+test('activity preserves persistence and the absolute deadline; logout prevents remembered browser restoration', async () => {
+  for (const role of ['customer', 'admin']) for (const remember of [false, true]) {
+    await withApi(async ({ login, send, advance, restartBrowser, jar }) => {
+      const logged = await login({ email: user.email, password: 'fabricated', remember });
+      advance(19 * 60 * 1000);
+      const activity = await send('/api/auth/activity', { method: 'POST', body: {} });
+      assert.equal(activity.status, 200);
+      assert.equal(activity.body.session.idleExpiresAt, logged.body.session.idleExpiresAt + 19 * 60 * 1000);
+      assert.equal(activity.body.session.absoluteExpiresAt, logged.body.session.absoluteExpiresAt);
+      advance(2 * 60 * 1000);
+      if (remember) restartBrowser();
+      assert.equal((await send('/api/me')).status, 200);
+      const replay = new Map(jar);
+      assert.equal((await send('/api/auth/logout', { method: 'POST' })).status, 200);
+      restartBrowser();
+      assert.equal(jar.size, 0);
+      assert.equal((await send('/api/me', { cookies: new Map(replay) })).status, 401);
+      assert.equal((await send('/api/auth/refresh', { method: 'POST', cookies: new Map(replay) })).status, 401);
+    }, { role, enforceAppSession: true });
+  }
 });
 
 test('invalid credentials are generic, and unusable profiles never establish app sessions', async () => {

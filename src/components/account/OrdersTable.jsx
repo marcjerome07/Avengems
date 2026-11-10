@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import OrderReference from './OrderReference';
+import { PaymentStatus } from './PaymentStatus';
 import { orderReference } from '../../utils/orderReference';
 import { StatusBadge } from '../ui/Badge';
 import { formatDate, formatPrice } from '../../utils/formatPrice';
@@ -40,6 +41,7 @@ export default function OrdersTable({ orders }) {
                 </td>
                 <td data-label="Status">
                   <StatusBadge status={o.status} />
+                  <div>Payment: <PaymentStatus order={o} /></div>
                 </td>
                 <td data-label="" className="num">
                   <Link to={`/account/orders/${encodeURIComponent(o.id)}`} className="text-link" aria-label={`View order ${orderReference(o)}`}>

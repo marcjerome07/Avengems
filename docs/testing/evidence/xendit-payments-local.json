@@ -1,0 +1,91 @@
+{
+  "startedAt": "2026-11-08T14:31:47.568Z",
+  "environment": "disposable native loopback PostgreSQL",
+  "database": "avengems_orders_stage",
+  "dataDirectory": "C:\\Users\\User\\AppData\\Local\\Temp\\avengems-pg-stage-hmKJsg\\data",
+  "sharedSupabaseContacted": false,
+  "modelLimitations": [
+    "Minimal disposable auth.users FK/trigger fixture, not Supabase Auth",
+    "Local roles/grants model; actual Supabase grants, PostgREST and HTTP/email flows remain unverified"
+  ],
+  "artifacts": {
+    "checkout-orders.sql": "13f0bf3381b2a5cca3fe450ff7cee5fca1e78539ac49e27e24494685862a09b5",
+    "admin-order-cancel.sql": "3d35dd62dca2a83df8886a6b2f8e40e48844a70c821beb2f039610b260d553a7",
+    "customer-order-cancel.sql": "342c1b5956183d2faf07edd4652d54c79968e4691937cbe0b4379a7febd1bf4a",
+    "order-display-references.sql": "1570d41dc0a8203176a9f8ba45b2bcc9403e65e2f0285c51ebd4c5fc6943f1c6",
+    "xendit-test-payments.sql": "3679b9dc033472cfed4bf425eac6b0faa1bf31966c141f72c52b72aa3dbc3b63"
+  },
+  "tests": [
+    {
+      "name": "forward-only installation preserves existing COD order, reference, stock and history",
+      "status": "PASS"
+    },
+    {
+      "name": "database gate is default OFF and blocks online orders atomically",
+      "status": "PASS"
+    },
+    {
+      "name": "online checkout reserves once and same checkout key replays one payment",
+      "status": "PASS"
+    },
+    {
+      "name": "concurrent initiation claims allow only one provider POST",
+      "status": "PASS"
+    },
+    {
+      "name": "unpaid fulfillment and installed customer/admin cancellations roll back inventory",
+      "status": "PASS"
+    },
+    {
+      "name": "concurrent duplicate success is durable and old expiry cannot downgrade paid",
+      "status": "PASS"
+    },
+    {
+      "name": "amount/currency/reference mismatches persist a rejected audit without granting payment",
+      "status": "PASS"
+    },
+    {
+      "name": "delayed pending observations cannot replace verified paid provider identifiers",
+      "status": "PASS"
+    },
+    {
+      "name": "safe expiry and racing installed admin cancellation restore exactly once",
+      "status": "PASS"
+    },
+    {
+      "name": "success wins cancellation race and paid order can enter fulfillment",
+      "status": "PASS"
+    },
+    {
+      "name": "payment versus fulfillment serializes on the order and permits only verified success",
+      "status": "PASS"
+    },
+    {
+      "name": "unstarted cancellation wins a claim race and cannot send a provider POST",
+      "status": "PASS"
+    },
+    {
+      "name": "unstarted expiry releases, while ambiguous creation holds stock after deadline",
+      "status": "PASS"
+    },
+    {
+      "name": "COD cancellation remains exactly once and money RPCs deny browser database roles",
+      "status": "PASS"
+    },
+    {
+      "name": "refund is not inferred from session expiry or a client state",
+      "status": "PASS"
+    },
+    {
+      "name": "partial/full refund reconciliation is idempotent and never returns physical inventory",
+      "status": "PASS"
+    }
+  ],
+  "cleanup": "stopped owned temporary cluster; fixtures retained only in temporary directory",
+  "port": 61378,
+  "postgresVersion": "postgres (PostgreSQL) 16.13",
+  "clusterIdentityVerified": true,
+  "harnessSha256": "2111668308c22e7682074cfac32065385357c89784849ee4d8cc6dbb793c7879",
+  "status": "PASS",
+  "finishedAt": "2026-11-08T14:32:06.926Z"
+}

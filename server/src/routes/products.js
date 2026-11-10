@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { ApiError } from '../errors.js';
+import { imageUrls } from '../productImages.js';
 
 const TYPES = ['Ring', 'Necklace', 'Bracelet', 'Earrings'];
 const STONES = ['power', 'space', 'reality', 'soul', 'time', 'mind'];
@@ -87,7 +88,7 @@ export function toProduct(row) {
     defaultSize: row.default_size,
     shortDescription: row.short_description,
     details: row.details,
-    images: row.images,
+    images: imageUrls(row.images),
     addedAt: row.added_at,
   };
 }

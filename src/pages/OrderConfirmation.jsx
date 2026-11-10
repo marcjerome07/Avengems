@@ -7,6 +7,7 @@ import Skeleton from '../components/ui/Skeleton';
 import EmptyState from '../components/ui/EmptyState';
 import { StatusBadge } from '../components/ui/Badge';
 import OrderReference from '../components/account/OrderReference';
+import PaymentActions from '../components/account/PaymentStatus';
 import { TotalsList, MiniItems } from '../components/cart/OrderSummary';
 import { useAuth } from '../context/useAuth';
 import { getOrderById, PAYMENT_LABELS } from '../services/orderService';
@@ -113,6 +114,7 @@ export default function OrderConfirmation() {
           </section>
 
           <TotalsList totals={order} />
+          <PaymentActions key={`${user.id}:${order.id}`} order={order} ownerId={user.id} onChanged={() => setVersion((value) => value + 1)} />
         </div>
       )}
 
