@@ -9,6 +9,28 @@
   border-top: var(--border);
 }
 
+.cart-selection, .cart-selection label, .cart-line__selection {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.cart-selection {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+
+.cart-line__selection {
+  font-size: var(--fs-sm);
+}
+
+.cart-selection input, .cart-line__selection input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ink);
+}
+
 .cart-line {
   display: grid;
   grid-template-columns: 120px minmax(0, 1fr) auto;

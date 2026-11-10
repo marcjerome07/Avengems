@@ -154,7 +154,7 @@ async function api(run, options = {}) {
   const app = express(); app.use(express.json());
   app.use('/api/auth', createAuthRouter(sessions));
   app.use('/api/cart', createCartQuoteRouter(db, sessions));
-  app.use('/api/me', createMeRouter({ client: db, cookieSessions: sessions, customerCancellationEnabled: options.customerCancellationEnabled, verifyAccessToken: async (token) => {
+  app.use('/api/me', createMeRouter({ client: db, cookieSessions: sessions, payments: options.payments, customerCancellationEnabled: options.customerCancellationEnabled, verifyAccessToken: async (token) => {
     if (token !== 'valid') throw unauthorized();
     return { id: owner, email: 'customer@example.test', email_confirmed_at: options.unconfirmed ? null : '2026-01-01' };
   } }));
@@ -172,6 +172,68 @@ async function api(run, options = {}) {
   }
   try { await run({ send, calls: db.calls }); } finally { await new Promise((resolve) => server.close(resolve)); }
 }
+
+test('selected subset quotes only submitted products and recalculates shipping without unselected stock', async () => {
+  await api(async ({ send, calls }) => {
+    const chosen = [{ productId: product.id, quantity: 1, color: 'Purple', size: 'US 5' }];
+    const result = await send('/api/cart/quote', 'POST', { items: chosen });
+    assert.equal(result.status, 200);
+    assert.equal(result.body.items.length, 1);
+    assert.equal(result.body.totals.subtotal, 900.1);
+    assert.equal(result.body.totals.shippingFee, 120);
+    assert.equal(result.body.totals.total, 1020.1);
+    assert.equal(result.body.totals.freeShippingRemaining, 1099.9);
+    assert.deepEqual(calls.find((call) => call.table === 'products').ids, [product.id]);
+  }, { products: [product, { ...product, id: 'unselected', stock: 0, archived: true }] });
+});
+
+test('subset placement forwards only the submitted lines to the atomic RPC with the same retry key', async () => {
+  await api(async ({ send, calls }) => {
+    const body = { ...request, items: [{ productId: product.id, quantity: 1, color: 'Purple', size: 'US 5' }] };
+    for (let retry = 0; retry < 2; retry++) assert.equal((await send('/api/me/orders', 'POST', body)).status, 200);
+    const placements = calls.filter((call) => call.rpc === 'customer_checkout');
+    assert.equal(placements.length, 2);
+    for (const call of placements) assert.deepEqual(call.args, { p_user_id: owner, p_key: key, p_request: checkoutBody(body) });
+    assert.equal(calls.some((call) => call.table === 'products'), false, 'No sequential client-side inventory writes');
+  });
+});
+
+test('empty selections, forged selection metadata and changed stock fail before order placement', async () => {
+  await api(async ({ send, calls }) => {
+    for (const items of [[], [{ ...request.items[0], selected: true }], [{ ...request.items[0], quantity: 0 }]]) {
+      assert.equal((await send('/api/me/orders', 'POST', { ...request, items })).status, 400);
+    }
+    assert.equal(calls.some((call) => call.rpc === 'customer_checkout'), false);
+    const changed = await send('/api/cart/quote', 'POST', { items: request.items });
+    assert.equal(changed.status, 409);
+    assert.equal(changed.body.code, 'INSUFFICIENT_STOCK');
+  }, { products: [{ ...product, stock: 1 }] });
+});
+
+test('payment routes inherit verified customer, Origin and CSRF protections', async () => {
+  let invoked=0;
+  const payments={capabilities:async()=>({methods:['cod'],online:false}),status:async()=>({status:'pending'}),
+    initiate:async(id,userId)=>{invoked++;assert.equal(userId,owner);assert.equal(id,'AVG-TEST');return{payment:{status:'pending'}};}};
+  for(const options of [{role:'admin'},{unconfirmed:true}])await api(async({send})=>{
+    assert.equal((await send('/api/me/payments/methods')).status,403);
+    assert.equal((await send('/api/me/payments/AVG-TEST/start','POST',{})).status,403);
+  },{...options,payments});
+  await api(async({send})=>{
+    assert.equal((await send('/api/me/payments/AVG-TEST/start','POST',{}, {Authorization:''})).status,401);
+    assert.equal((await send('/api/me/payments/AVG-TEST/start','POST',{}, {'X-CSRF-Token':''})).status,403);
+    assert.equal((await send('/api/me/payments/AVG-TEST/start','POST',{amount:1})).status,400);
+    assert.equal((await send('/api/me/payments/AVG-TEST/start','POST',{})).status,200);
+  },{payments});
+  assert.equal(invoked,1);
+});
+
+test('online checkout cannot use the former demo path when the payment integration is absent',async()=>{
+  await api(async({send,calls})=>{
+    for(const method of ['gcash','maya','card'])assert.equal((await send('/api/me/orders','POST',{...request,paymentMethod:method})).status,503);
+    assert.equal(calls.some(call=>call.rpc==='customer_checkout'),false);
+    assert.equal((await send('/api/me/orders','POST',request)).status,200);
+  });
+});
 
 test('quote endpoint is available to guests, protected by Origin/CSRF, and returns no-store', async () => {
   await api(async ({ send }) => {

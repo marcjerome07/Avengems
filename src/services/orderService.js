@@ -3,7 +3,9 @@ import { cartSelections } from './cartService';
 import { ServiceError } from './serviceError';
 
 export function orderRequest({ items, customer, shipping, paymentMethod }) {
-  return { items: cartSelections(items), customer: { name: customer?.name, email: customer?.email, phone: customer?.phone },
+  const selections = cartSelections(items);
+  if (!selections.length) throw new ServiceError('EMPTY_SELECTION', 'Select at least one item before checking out.');
+  return { items: selections, customer: { name: customer?.name, email: customer?.email, phone: customer?.phone },
     shipping: shipping?.addressId ? { addressId: shipping.addressId } : { address: shipping?.address, city: shipping?.city, province: shipping?.province, postalCode: shipping?.postalCode }, paymentMethod };
 }
 export async function placeOrder(payload, { idempotencyKey, ownerId } = {}) {

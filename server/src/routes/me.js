@@ -5,8 +5,9 @@ import { ApiError } from '../errors.js';
 import { ADDRESS_COLUMNS, profilePatch, addressPatch, addressId, addressNotFound, toAddress, database } from '../customer.js';
 import { createWishlistRouter } from './wishlist.js';
 import { createOrdersRouter } from './checkout.js';
+import { createPaymentRouter } from './payments.js';
 
-export function createMeRouter({ client, verifyAccessToken, cookieSessions, customerCancellationEnabled = false }) {
+export function createMeRouter({ client, verifyAccessToken, cookieSessions, customerCancellationEnabled = false, payments }) {
   const router = Router();
   router.use(createRequireAuth(verifyAccessToken, { cookieSessions }));
 
@@ -33,7 +34,8 @@ export function createMeRouter({ client, verifyAccessToken, cookieSessions, cust
     next();
   });
   router.use('/wishlist', createWishlistRouter(client));
-  router.use('/orders', createOrdersRouter(client, { customerCancellationEnabled }));
+  if (payments) router.use('/payments', createPaymentRouter(payments));
+  router.use('/orders', createOrdersRouter(client, { customerCancellationEnabled, payments }));
   router.patch('/', async (req, res) => {
     const patch = profilePatch(req.body);
     const row = await database(() => client.from('profiles').update(patch).eq('id', req.auth.userId).select('id').maybeSingle());

@@ -28,12 +28,13 @@ export function CartProvider({ children }) {
       setItems((prev) => {
         const existing = prev.find((i) => i.lineId === lineId);
         if (existing) {
-          return prev.map((i) => (i.lineId === lineId ? { ...i, quantity: Math.min(maxQty, i.quantity + quantity) } : i));
+          return prev.map((i) => (i.lineId === lineId ? { ...i, selected: true, quantity: Math.min(maxQty, i.quantity + quantity) } : i));
         }
         return [
           ...prev,
           {
             lineId,
+            selected: true,
             productId: product.id,
             slug: product.slug,
             name: product.name,
@@ -74,15 +75,18 @@ export function CartProvider({ children }) {
   );
 
   const clearCart = useCallback(() => setItems([]), []);
+  const selectItem = useCallback((lineId, selected) => setItems((previous) => cartService.selectCartItems(previous, selected, lineId)), []);
+  const selectAll = useCallback((selected) => setItems((previous) => cartService.selectCartItems(previous, selected)), []);
   const completeCheckout = useCallback((purchased) => setItems((previous) => cartService.subtractPurchasedItems(previous, purchased)), []);
-  const { quote, loading: quoteLoading, error: quoteError, reload: reloadQuote } = useCartQuote(items);
+  const selectedItems = useMemo(() => cartService.selectedCartItems(items), [items]);
+  const { quote, loading: quoteLoading, error: quoteError, reload: reloadQuote } = useCartQuote(selectedItems);
   const itemCount = items.reduce((count, item) => count + item.quantity, 0);
   const totals = quote?.totals ?? null;
-  const quotedItems = useMemo(() => quote?.items.map((item, index) => ({ ...item, lineId: items[index]?.lineId ?? item.lineId })) ?? null, [quote, items]);
+  const quotedItems = useMemo(() => quote?.items.map((item, index) => ({ ...item, lineId: selectedItems[index]?.lineId ?? item.lineId })) ?? null, [quote, selectedItems]);
 
   const value = useMemo(
-    () => ({ items, totals, quotedItems, quoteLoading, quoteError, reloadQuote, itemCount, addItem, updateQuantity, removeItem, clearCart, completeCheckout }),
-    [items, totals, quotedItems, quoteLoading, quoteError, reloadQuote, itemCount, addItem, updateQuantity, removeItem, clearCart, completeCheckout],
+    () => ({ items, selectedItems, selectItem, selectAll, totals, quotedItems, quoteLoading, quoteError, reloadQuote, itemCount, addItem, updateQuantity, removeItem, clearCart, completeCheckout }),
+    [items, selectedItems, selectItem, selectAll, totals, quotedItems, quoteLoading, quoteError, reloadQuote, itemCount, addItem, updateQuantity, removeItem, clearCart, completeCheckout],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

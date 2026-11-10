@@ -1,4 +1,7 @@
 import { commerce } from './commerceService';
+export const reconcileAdminPayment = (id, sessionId) => commerce.request(`/api/admin/orders/${encodeURIComponent(id)}/payment/reconcile`,
+  { method: 'POST', body: sessionId ? { sessionId } : {} });
+export const closeAdminPayment = (id) => commerce.request(`/api/admin/orders/${encodeURIComponent(id)}/payment/cancel`, { method: 'POST', body: {} });
 export const FULFILLMENT_NEXT = { Pending: ['Processing'], Processing: ['Shipped'], Shipped: ['Delivered'], Delivered: [], Cancelled: [] };
 
 const get = (path) => commerce.request(`/api/admin/${path}`);

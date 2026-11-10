@@ -2,7 +2,11 @@ import express from 'express';
 import healthRoutes from './routes/health.js';
 import { createProductsRouter } from './routes/products.js';
 import { supabase } from './supabase.js';
-import { createAccessTokenVerifier, createAuthClientFactory } from './auth.js';
+import { createAccessTokenVerifier, createAuthClientFactory, createOAuthClientFactory } from './auth.js';
+import { createGoogleOAuth } from './googleOAuth.js';
+import { createXendit } from './xendit.js';
+import { createPayments } from './payments.js';
+import { createPaymentWebhookRouter } from './routes/payments.js';
 import { createMeRouter } from './routes/me.js';
 import { createCookieSessions } from './sessions.js';
 import { createAuthRouter } from './routes/auth.js';
@@ -19,6 +23,7 @@ const PORT = Number(process.env.PORT) || 3001;
 const app = express();
 const authConfig = { url: process.env.SUPABASE_URL, publishableKey: process.env.SUPABASE_PUBLISHABLE_KEY };
 const appOrigin = process.env.APP_ORIGIN || (process.env.NODE_ENV === 'production' ? undefined : 'http://localhost:5173');
+const payments = createPayments({ client: supabase, provider: createXendit(), origin: appOrigin });
 const registration = createRegistration({
   createAuthClient: createAuthClientFactory(authConfig),
   loadUser: (user) => getPublicUser(supabase, identityFromUser(user)),
@@ -31,6 +36,8 @@ const cookieSessions = createCookieSessions({
   production: process.env.NODE_ENV === 'production',
 });
 app.disable('x-powered-by');
+const googleOAuth = createGoogleOAuth({ createOAuthClient: createOAuthClientFactory(authConfig), cookieSessions,
+  origin: appOrigin, supabaseUrl: authConfig.url, production: process.env.NODE_ENV === 'production' });
 const recovery = createRecovery({ createAuthClient: createAuthClientFactory(authConfig), cookieSessions,
   production: process.env.NODE_ENV === 'production' });
 app.use(['/api/auth', '/api/me', '/api/cart', '/api/admin'], (req, res, next) => {
@@ -38,6 +45,7 @@ app.use(['/api/auth', '/api/me', '/api/cart', '/api/admin'], (req, res, next) =>
   next();
 });
 app.use(express.json({ limit: '100kb' }));
+app.use('/api/webhooks', createPaymentWebhookRouter(payments));
 app.use(['/api/me', '/api/admin'], cookieSessions.requireSession);
 
 app.get('/api', (req, res) => {
@@ -46,13 +54,14 @@ app.get('/api', (req, res) => {
 app.use('/api/health', healthRoutes);
 app.use('/api/products', createProductsRouter(supabase));
 app.use('/api/collections', createCollectionsRouter(supabase));
-app.use('/api/auth', createAuthRouter(cookieSessions, registration, recovery));
+app.use('/api/auth', createAuthRouter(cookieSessions, registration, recovery, googleOAuth));
 app.use('/api/cart', createCartQuoteRouter(supabase, cookieSessions));
-app.use('/api/admin', createAdminRouter({ client: supabase, cookieSessions, verifyAccessToken: async (accessToken) => {
+app.use('/api/admin', createAdminRouter({ client: supabase, cookieSessions, payments, verifyAccessToken: async (accessToken) => {
   recovery.assertNormalAccessToken(accessToken);
   return createAccessTokenVerifier(authConfig)(accessToken);
 } }));
 app.use('/api/me', createMeRouter({
+  payments,
   customerCancellationEnabled: process.env.CUSTOMER_ORDER_CANCELLATION_ENABLED === 'true',
   client: supabase,
   verifyAccessToken: async (accessToken) => {

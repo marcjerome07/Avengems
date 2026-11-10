@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingBag, Trash2, ArrowRight, Lock } from 'lucide-react';
 import PageContainer, { PageHeader } from '../components/layout/PageContainer';
@@ -9,18 +9,25 @@ import ProductMedia from '../components/product/ProductMedia';
 import ProductGrid from '../components/product/ProductGrid';
 import { QuoteTotals } from '../components/cart/OrderSummary';
 import { useCart } from '../context/useCart';
+import { selectedCartItems } from '../services/cartService';
 import { getSuggestedProducts } from '../services/productService';
 import { formatPrice } from '../utils/formatPrice';
 import { stoneVar } from '../utils/stoneTheme';
 import './Cart.css';
 
-function CartLine({ item, onQuantity, onRemove, priced }) {
+function CartLine({ item, onQuantity, onRemove, onSelect, priced }) {
   return (
     <li className="cart-line">
       <Link to={`/product/${item.slug}`} className="cart-line__media" tabIndex={-1} aria-hidden="true">
         <ProductMedia product={item} />
       </Link>
       <div className="cart-line__info">
+        <label className="cart-line__selection">
+          <input type="checkbox" checked={item.selected !== false}
+            onChange={(event) => onSelect(item.lineId, event.target.checked)}
+            aria-label={`Select ${item.name}, ${item.color}, ${item.size ?? 'one size'} for checkout`} />
+          Select for checkout
+        </label>
         <h2 className="cart-line__name">
           <Link to={`/product/${item.slug}`}>{item.name}</Link>
         </h2>
@@ -65,8 +72,15 @@ function CartLine({ item, onQuantity, onRemove, priced }) {
 }
 
 export default function Cart() {
-  const { items, totals, quotedItems, quoteLoading, quoteError, reloadQuote, itemCount, updateQuantity, removeItem } = useCart();
-  const ready = Boolean(totals) && !quoteLoading && !quoteError;
+  const { items, totals, quotedItems, quoteLoading, quoteError, reloadQuote, itemCount, updateQuantity, removeItem, selectItem, selectAll } = useCart();
+  const selectedItems = selectedCartItems(items);
+  const ready = selectedItems.length > 0 && Boolean(totals) && !quoteLoading && !quoteError;
+  const allSelected = selectedItems.length === items.length;
+  const selectAllInput = useRef(null);
+  useEffect(() => {
+    if (selectAllInput.current) selectAllInput.current.indeterminate = selectedItems.length > 0 && !allSelected;
+  }, [selectedItems.length, allSelected]);
+  const prices = new Map((quotedItems ?? []).map((item) => [item.lineId, item]));
   const [suggestions, setSuggestions] = useState(null);
   const stonesInCart = useMemo(() => [...new Set(items.map((i) => i.stone))].sort().join(','), [items]);
 
@@ -102,17 +116,27 @@ export default function Cart() {
       <PageHeader title="Your Cart" subtitle={`${itemCount} ${itemCount === 1 ? 'piece' : 'pieces'} in your collection`} />
 
       <div className="cart-layout">
+        <div>
+          <div className="cart-selection">
+            <label><input ref={selectAllInput} type="checkbox" checked={allSelected}
+              aria-checked={selectedItems.length > 0 && !allSelected ? 'mixed' : allSelected}
+              onChange={(event) => selectAll(event.target.checked)} /> Select All</label>
+            <span role="status">{selectedItems.length} of {items.length} items selected</span>
+          </div>
         <ul className="cart-lines" role="list" aria-label="Cart items">
-          {(quotedItems ?? items).map((item) => (
-            <CartLine key={item.lineId} item={item} priced={ready} onQuantity={updateQuantity} onRemove={removeItem} />
+          {items.map((item) => (
+            <CartLine key={item.lineId} item={{ ...item, ...prices.get(item.lineId) }} priced={ready && item.selected !== false}
+              onQuantity={updateQuantity} onRemove={removeItem} onSelect={selectItem} />
           ))}
         </ul>
+        </div>
 
         <aside className="summary-card cart-summary" aria-labelledby="summary-title">
           <h2 id="summary-title" className="summary-card__title">
             Order summary
           </h2>
-          <QuoteTotals totals={totals} loading={quoteLoading} error={quoteError} onRetry={reloadQuote} showFreeShippingHint />
+          {selectedItems.length ? <QuoteTotals totals={totals} loading={quoteLoading} error={quoteError} onRetry={reloadQuote} showFreeShippingHint />
+            : <p role="status">Select at least one item to see checkout totals.</p>}
           <Button to="/checkout" disabled={!ready} size="lg" fullWidth icon={Lock}>
             Proceed to Checkout
           </Button>

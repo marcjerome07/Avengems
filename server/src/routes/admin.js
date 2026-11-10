@@ -9,7 +9,7 @@ import { adminDatabase, allRows, customerEmails, customerSummaries, identifier, 
 
 const notFound = (name) => new ApiError(404, 'NOT_FOUND', `${name} not found.`);
 const adminProduct = (row) => ({ ...toProduct(row), archived: row.archived });
-export function createAdminRouter({ client, verifyAccessToken, cookieSessions, now = () => new Date() }) {
+export function createAdminRouter({ client, verifyAccessToken, cookieSessions, payments, now = () => new Date() }) {
   const router = Router();
   router.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
   router.use(createRequireAuth(verifyAccessToken, { cookieSessions }), createRequireAdmin(client));
@@ -28,6 +28,14 @@ export function createAdminRouter({ client, verifyAccessToken, cookieSessions, n
     rows.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)) || a.id.localeCompare(b.id));
     res.json({ items: rows.map(toOrder) });
   });
+  if (payments) router.post('/orders/:id/payment/reconcile', async (req, res) => {
+    identifier(req.params.id);
+    res.json({ payment: await payments.adminReconcile(req) });
+  });
+  if (payments) router.post('/orders/:id/payment/cancel', async (req, res) => {
+    only(req.body, []);
+    res.json({ payment: await payments.cancel(identifier(req.params.id), null) });
+  });
   router.get('/orders/:id', async (req, res) => {
     const row = await adminDatabase(() => client.from('orders').select(ORDER_SELECT).eq('id', identifier(req.params.id)).maybeSingle());
     if (!row) throw notFound('Order');
@@ -42,7 +50,13 @@ export function createAdminRouter({ client, verifyAccessToken, cookieSessions, n
     const row = await adminDatabase(() => client.from('orders').select(ORDER_SELECT).eq('id', id).maybeSingle());
     if (!row) throw notFound('Order');
     if (row.status === status) return res.json(toOrder(row));
+    if (row.payment_method !== 'cod' && row.payment_state !== 'paid') throw new ApiError(409, 'PAYMENT_REQUIRED', 'Verified payment is required before fulfillment.');
+    if (payments && row.payment_state === 'paid' && (await payments.reconcile(id, null)).status !== 'paid') {
+      throw new ApiError(409, 'PAYMENT_REQUIRED', 'Payment or refund state changed. Reconcile before fulfillment.');
+    }
     if (row.status !== expectedStatus || !TRANSITIONS[row.status]?.includes(status)) throw new ApiError(409, 'STATUS_CONFLICT', 'The order changed or this transition is not allowed. Refresh before retrying.');
+    // The proposed database guard is the authoritative race protection. This
+    // check also blocks unpaid legacy/demo online orders before deployment.
     const changed = await adminDatabase(() => client.from('orders').update({ status }).eq('id', id).eq('status', expectedStatus).select(ORDER_SELECT).maybeSingle());
     if (!changed) throw new ApiError(409, 'STATUS_CONFLICT', 'The order changed. Refresh before retrying.');
     res.json(toOrder(changed));
@@ -50,6 +64,10 @@ export function createAdminRouter({ client, verifyAccessToken, cookieSessions, n
   router.post('/orders/:id/cancel', async (req, res) => {
     only(req.body, []);
     const id = identifier(req.params.id);
+    if (payments) {
+      const current = await adminDatabase(() => client.from('orders').select('*').eq('id', id).maybeSingle());
+      if (current?.payment_state) throw new ApiError(409, 'PAYMENT_CONFLICT', 'Close or reconcile the online payment first. Paid orders require a refund review.');
+    }
     let result;
     try { result = await client.rpc('admin_cancel_order', { p_admin_id: req.auth.userId, p_order_id: id }); }
     catch { throw new ApiError(503, 'CANCELLATION_UNAVAILABLE', 'Cancellation could not be confirmed. Reload before retrying.'); }
@@ -125,7 +143,7 @@ export function createAdminRouter({ client, verifyAccessToken, cookieSessions, n
   router.get('/customers', async (_req, res) => {
     const [profiles, orders, addresses] = await Promise.all([
       allRows(client, 'profiles', 'id, name, phone, role', (query) => query.eq('role', 'customer')),
-      allRows(client, 'orders', 'id, user_id, status, total, created_at, customer_email'),
+      allRows(client, 'orders', '*'),
       allRows(client, 'addresses', 'id, user_id, city, is_default'),
     ]);
     const { emails, available } = await customerEmails(client, profiles.map((profile) => profile.id));

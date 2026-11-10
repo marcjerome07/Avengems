@@ -72,7 +72,7 @@ async function api(run, options = {}) {
   const app = express(); app.use(express.json());
   app.use('/api/auth', createAuthRouter(sessions));
   app.use('/api/collections', createCollectionsRouter(db));
-  app.use('/api/admin', createAdminRouter({ client: db, cookieSessions: sessions, now: () => new Date('2026-11-07T00:00:00Z'), verifyAccessToken: async (token) => {
+  app.use('/api/admin', createAdminRouter({ client: db, cookieSessions: sessions, payments: options.payments, now: () => new Date('2026-11-07T00:00:00Z'), verifyAccessToken: async (token) => {
     if (!['admin', 'customer', 'unconfirmed'].includes(token)) throw unauthorized();
     return { id: token === 'customer' ? customer : admin, email: 'account@example.test', email_confirmed_at: token === 'unconfirmed' ? null : '2026-01-01', user_metadata: { role: 'admin' } };
   } }));
@@ -94,6 +94,17 @@ async function api(run, options = {}) {
   }
   try { await run({ send, db }); } finally { await new Promise((resolve) => server.close(resolve)); }
 }
+
+test('payment management requires a verified database admin and unpaid orders cannot be fulfilled',async()=>{
+  let calls=0;const payments={adminReconcile:async()=>{calls++;return{status:'pending'};},cancel:async()=>{calls++;return{status:'cancelled'};}};
+  await api(async({send})=>{
+    for(const token of ['customer','unconfirmed','expired'])assert.ok([401,403].includes((await send('/api/admin/orders/AVG-TEST/payment/reconcile','POST',{}, {Authorization:`Bearer ${token}`})).status));
+    assert.equal((await send('/api/admin/orders/AVG-TEST/status','PATCH',{status:'Processing',expectedStatus:'Pending'})).status,409);
+    assert.equal((await send('/api/admin/orders/AVG-TEST/cancel','POST',{})).status,409);
+    assert.equal((await send('/api/admin/orders/AVG-TEST/payment/reconcile','POST',{})).status,200);
+  },{payments,orders:[{...order,payment_method:'gcash',payment_state:'pending'}]});
+  assert.equal(calls,1);
+});
 
 test('all admin modules require verified database admin role, ignoring forged metadata and IDs', async () => {
   await api(async ({ send, db }) => {

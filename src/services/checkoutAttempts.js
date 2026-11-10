@@ -23,7 +23,7 @@ export function finishCheckout(owner, orderId) {
 }
 export function definitiveCheckoutFailure(error) {
   return [400, 403, 404, 415].includes(error.status) || error.code === 'CHECKOUT_MIGRATION_REQUIRED'
-    || ['INSUFFICIENT_STOCK', 'PRODUCT_UNAVAILABLE', 'INVALID_CUSTOMIZATION'].includes(error.code);
+    || ['INSUFFICIENT_STOCK', 'PRODUCT_UNAVAILABLE', 'INVALID_CUSTOMIZATION', 'PAYMENTS_DISABLED'].includes(error.code);
 }
 export async function confirmCheckoutAttempt(attempt, { placeOrder, completeCart, isCurrent = () => true }) {
   if (!isCurrent()) throw new ServiceError('SESSION_CHANGED', 'Sign in to the original account to confirm this checkout.');

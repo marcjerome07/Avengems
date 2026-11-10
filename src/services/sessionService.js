@@ -117,3 +117,16 @@ export function recordSessionActivity(elapsedMs = 0) {
   return reportingActivity;
 }
 export async function checkIdleSession() { return sessionTiming((await post('idle')).session); }
+
+export async function startGoogleLogin(remember = false) {
+  const result = await post('google', { remember });
+  let target;
+  try { target = new URL(result.url); } catch { /* Reject malformed navigation below. */ }
+  if (!target || (target.protocol !== 'https:' && !(target.protocol === 'http:'
+    && ['localhost', '127.0.0.1', '[::1]'].includes(target.hostname)))
+    || !target.pathname.endsWith('/auth/v1/authorize') || target.searchParams.get('provider') !== 'google') {
+    throw new ServiceError('GOOGLE_UNAVAILABLE', 'Unable to start Google sign-in. Please try again.');
+  }
+  return target.href;
+}
+export const cancelGoogleLogin = () => post('google/cancel');
