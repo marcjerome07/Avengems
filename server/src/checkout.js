@@ -1,6 +1,8 @@
 import { ApiError } from './errors.js';
 import { addressId, addressPatch, database } from './customer.js';
 import { PRODUCT_SELECT } from './routes/products.js';
+import { imageUrls } from './productImages.js';
+import { trackingUrl } from './orderEmails.js';
 
 export function invalid(message, code = 'VALIDATION_ERROR', status = 400) { throw new ApiError(status, code, message); }
 export function only(value, allowed) {
@@ -78,7 +80,7 @@ export async function quoteCart(client, requested) {
     return { lineId: `${product.id}|${color}|${size ?? ''}`, productId: product.id, name: product.name, slug: product.slug,
       type: product.type, material: product.material, stone: collection.stone, color, size,
       basePrice: base / 100, customizationFee: fee / 100, unitPrice: (base + fee) / 100,
-      customized, quantity: line.quantity, maxQuantity: Math.min(10, product.stock), images: color === product.collection.color ? product.images : [] };
+      customized, quantity: line.quantity, maxQuantity: Math.min(10, product.stock), images: color === product.collection.color ? imageUrls(product.images) : [] };
   });
   const threshold = cents(settings.free_shipping_threshold);
   const flatFee = cents(settings.shipping_fee);
@@ -93,6 +95,9 @@ export function toOrder(row) {
   return { id: row.id, reference: typeof row.order_reference === 'string' && /^AVG-\d{4}-\d{4,19}$/.test(row.order_reference) ? row.order_reference : null,
     createdAt: row.created_at, status: row.status, paymentMethod: row.payment_method,
     ...(row.payment_state ? { payment: { status: row.payment_state } } : {}),
+    ...(row.tracking_number ? { tracking: { number: row.tracking_number, carrier: row.tracking_carrier ?? null,
+      url: trackingUrl(row.tracking_carrier, row.tracking_number) } } : {}),
+    ...(row.cancellation_reason ? { cancellationReason: row.cancellation_reason } : {}),
     customer: { name: row.customer_name, email: row.customer_email, phone: row.customer_phone },
     shipping: { address: row.ship_address, city: row.ship_city, province: row.ship_province, postalCode: row.ship_postal_code },
     subtotal: Number(row.subtotal), customizationTotal: Number(row.customization_total), shippingFee: Number(row.shipping_fee), total: Number(row.total),

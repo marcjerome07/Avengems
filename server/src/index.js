@@ -17,13 +17,21 @@ import { notFound, errorHandler } from './errors.js';
 import { createCartQuoteRouter } from './routes/checkout.js';
 import { createAdminRouter } from './routes/admin.js';
 import { createCollectionsRouter } from './routes/collections.js';
+import { createMailer } from './mailer.js';
+import { startupConfig } from './config.js';
+import { createOrderNotifications } from './orderNotifications.js';
 
 const PORT = Number(process.env.PORT) || 3001;
 
 const app = express();
 const authConfig = { url: process.env.SUPABASE_URL, publishableKey: process.env.SUPABASE_PUBLISHABLE_KEY };
-const appOrigin = process.env.APP_ORIGIN || (process.env.NODE_ENV === 'production' ? undefined : 'http://localhost:5173');
+// Throws (refusing to start) on missing/invalid APP_ORIGIN in production or incomplete SMTP settings.
+const { production, appOrigin, emailOrigin } = startupConfig();
+const mailer = createMailer();
 const payments = createPayments({ client: supabase, provider: createXendit(), origin: appOrigin });
+// Order emails only. Supabase Auth emails are configured in the Supabase Dashboard.
+const notifications = createOrderNotifications({ client: supabase, mailer, origin: emailOrigin, production,
+  storeEmail: process.env.STORE_NOTIFY_EMAIL });
 const registration = createRegistration({
   createAuthClient: createAuthClientFactory(authConfig),
   loadUser: (user) => getPublicUser(supabase, identityFromUser(user)),
@@ -56,12 +64,13 @@ app.use('/api/products', createProductsRouter(supabase));
 app.use('/api/collections', createCollectionsRouter(supabase));
 app.use('/api/auth', createAuthRouter(cookieSessions, registration, recovery, googleOAuth));
 app.use('/api/cart', createCartQuoteRouter(supabase, cookieSessions));
-app.use('/api/admin', createAdminRouter({ client: supabase, cookieSessions, payments, verifyAccessToken: async (accessToken) => {
+app.use('/api/admin', createAdminRouter({ client: supabase, cookieSessions, payments, notifications, verifyAccessToken: async (accessToken) => {
   recovery.assertNormalAccessToken(accessToken);
   return createAccessTokenVerifier(authConfig)(accessToken);
 } }));
 app.use('/api/me', createMeRouter({
   payments,
+  notifications,
   customerCancellationEnabled: process.env.CUSTOMER_ORDER_CANCELLATION_ENABLED === 'true',
   client: supabase,
   verifyAccessToken: async (accessToken) => {
@@ -77,4 +86,5 @@ app.use(errorHandler);
 app.listen(PORT, () => {
   console.log(`Avengems API running at http://localhost:${PORT}/api`);
   console.log(`Health check: http://localhost:${PORT}/api/health`);
+  notifications.sweep();
 });

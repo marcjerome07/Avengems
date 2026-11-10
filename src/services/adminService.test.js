@@ -128,6 +128,12 @@ test('product edit payload omits unchanged stock and includes expected stock onl
   assert.deepEqual(service.productUpdatePayload({ stock: '10' }, { price: 120, stock: 10 }), { price: 120 });
   assert.deepEqual(service.productUpdatePayload({ stock: '10' }, { stock: 12 }), { stock: 12, expectedStock: 10 });
   assert.deepEqual(service.productUpdatePayload({ stock: 10 }, { archived: true }), { archived: true });
+  const imageSources = [{ source: 'products/p-01/a.jpg', url: 'https://x/a.jpg' }, { source: 'products/p-01/b.jpg', url: 'https://x/b.jpg' }];
+  assert.deepEqual(service.productUpdatePayload({ stock: 1, imageSources }, { images: ['products/p-01/a.jpg', 'products/p-01/b.jpg'] }), {});
+  assert.deepEqual(service.productUpdatePayload({ stock: 1, imageSources }, { images: ['products/p-01/b.jpg', 'products/p-01/a.jpg'] }),
+    { images: ['products/p-01/b.jpg', 'products/p-01/a.jpg'], expectedImages: ['products/p-01/a.jpg', 'products/p-01/b.jpg'] });
+  assert.deepEqual(service.productUpdatePayload({ stock: 1, imageSources }, { images: ['products/p-01/b.jpg'] }),
+    { images: ['products/p-01/b.jpg'], expectedImages: ['products/p-01/a.jpg', 'products/p-01/b.jpg'] });
 });
 
 test('authorization, inventory/status conflicts and migration failures remain explicit without pretend success', async (t) => {

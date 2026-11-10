@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Search, PackageX } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, PackageX, ImageOff } from 'lucide-react';
 import AdminHeader from '../../components/admin/AdminHeader';
 import AdminDataState from '../../components/admin/AdminDataState';
 import Button from '../../components/ui/Button';
@@ -11,6 +11,8 @@ import Badge from '../../components/ui/Badge';
 import EmptyState from '../../components/ui/EmptyState';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import ProductMedia from '../../components/product/ProductMedia';
+import ProductImagesField from '../../components/admin/ProductImagesField';
+import useProductImages from '../../hooks/useProductImages';
 import { useToast } from '../../context/useToast';
 import useServiceData from '../../hooks/useServiceData';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
@@ -42,6 +44,7 @@ const BLANK = {
   customizationFee: '150',
   isFeatured: false,
   archived: false,
+  imageSources: [],
 };
 
 function toForm(p) {
@@ -53,6 +56,7 @@ function toForm(p) {
     customSize: p.customizable.size,
     customColor: p.customizable.color,
     customizationFee: String(p.customizationFee ?? 150),
+    imageSources: p.imageSources ?? [],
   };
 }
 
@@ -60,6 +64,7 @@ function ProductForm({ initial, collections, onCancel, onSave, saving }) {
   const gemstoneFor = (stone) => collections.find((c) => c.stone === stone)?.gemstone ?? '';
   const [v, setV] = useState(initial);
   const [errors, setErrors] = useState({});
+  const images = useProductImages(initial.imageSources, initial.id);
   const set = (name, value) => {
     setV((x) => ({ ...x, [name]: value }));
     if (errors[name]) setErrors((e) => ({ ...e, [name]: '' }));
@@ -68,6 +73,7 @@ function ProductForm({ initial, collections, onCancel, onSave, saving }) {
 
   function handleSubmit(e) {
     e.preventDefault();
+    if (images.uploading) return;
     const result = runValidators(v, {
       name: (x) => validateRequired(x, 'Product name'),
       price: (x) => (Number(x) >= 1 ? '' : 'Enter a price of at least ₱1.'),
@@ -77,7 +83,8 @@ function ProductForm({ initial, collections, onCancel, onSave, saving }) {
     });
     setErrors(result);
     if (Object.keys(result).length) return;
-    onSave({
+    const imageSources = images.sources;
+    const payload = {
       name: v.name.trim(),
       type: v.type,
       stone: v.stone,
@@ -91,7 +98,9 @@ function ProductForm({ initial, collections, onCancel, onSave, saving }) {
       isFeatured: v.isFeatured,
       archived: v.archived,
       ...(v.id && v.type === initial.type ? { sizes: v.sizes, defaultSize: v.defaultSize } : getSizePreset(v.type)),
-    });
+      images: imageSources,
+    };
+    onSave(payload, { onSaved: () => images.commit(imageSources) });
   }
 
   return (
@@ -162,6 +171,7 @@ function ProductForm({ initial, collections, onCancel, onSave, saving }) {
           </p>
         )}
       </div>
+      <ProductImagesField images={images} productName={v.name.trim() || 'this product'} />
       <fieldset className="span-2" style={{ border: 0, padding: 0, margin: 0, display: 'flex', flexWrap: 'wrap', gap: '0 24px' }}>
         <legend className="field__label">Options</legend>
         <label className="checkbox">
@@ -179,7 +189,8 @@ function ProductForm({ initial, collections, onCancel, onSave, saving }) {
         <Button variant="ghost" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" loading={saving}>
+        {images.uploading && <span className="pimg__status" role="status">Waiting for uploads…</span>}
+        <Button type="submit" loading={saving} disabled={images.uploading}>
           {v.id ? 'Save changes' : 'Add product'}
         </Button>
       </div>
@@ -209,19 +220,20 @@ export default function Products() {
     );
   }, [data, query, type, stone]);
 
-  async function handleSave(payload) {
+  async function handleSave(payload, { onSaved } = {}) {
     setBusy(true);
     try {
       if (editing.id) {
         await updateProduct(editing.id, productUpdatePayload(editing, payload));
       }
       else await createProduct(payload);
+      onSaved?.();
       showToast(editing.id ? 'Product updated.' : 'Product added to the catalog.', { type: 'success' });
       setEditing(null);
       reload();
     } catch (err) {
       showToast(err.message, { type: 'error' });
-      if (err.code === 'INVENTORY_CONFLICT') { setEditing(null); reload(); }
+      if (['INVENTORY_CONFLICT', 'IMAGES_CONFLICT'].includes(err.code)) { setEditing(null); reload(); }
     } finally {
       setBusy(false);
     }
@@ -302,7 +314,13 @@ export default function Products() {
                   <td data-label="Product">
                     <span className="cell-product">
                       <span className="cell-product__thumb">
-                        <ProductMedia product={p} />
+                        {p.images?.length ? (
+                          <ProductMedia product={p} />
+                        ) : (
+                          <span className="cell-product__placeholder" role="img" aria-label="No image">
+                            <ImageOff size={16} strokeWidth={1.4} aria-hidden="true" />
+                          </span>
+                        )}
                       </span>
                       <span>
                         <Link to={`/product/${p.slug}`} className="cell-product__name">
