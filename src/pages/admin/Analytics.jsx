@@ -6,7 +6,7 @@ import useServiceData from '../../hooks/useServiceData';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import { getAnalytics } from '../../services/adminService';
 import { formatPrice } from '../../utils/formatPrice';
-import { stoneTheme } from '../../utils/stoneTheme';
+import { stoneName, stoneTheme } from '../../utils/stoneTheme';
 
 export default function Analytics() {
   useDocumentTitle('Admin · Analytics');
@@ -23,7 +23,7 @@ export default function Analytics() {
         <section className="panel" aria-labelledby="stone-title">
           <div className="panel__head">
             <h2 id="stone-title" className="panel__title">
-              Sales by Stone Color
+              Sales by Infinity Stone
             </h2>
           </div>
           {data ? <StoneBarChart data={data.byStone} /> : <Skeleton height={300} />}
@@ -70,7 +70,7 @@ export default function Analytics() {
                     <td data-label="Stone">
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                         <span className="stone-dot" style={{ background: stoneTheme(p.stone).base }} aria-hidden="true" />
-                        {stoneTheme(p.stone).color}
+                        {stoneName(p.stone)}
                       </span>
                     </td>
                     <td data-label="Units" className="num">

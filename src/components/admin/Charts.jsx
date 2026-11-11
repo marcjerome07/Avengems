@@ -13,7 +13,7 @@ import {
   Bar,
   LabelList,
 } from 'recharts';
-import { STONE_THEME } from '../../utils/stoneTheme';
+import { STONE_THEME, stoneName } from '../../utils/stoneTheme';
 import { formatPrice, formatPriceShort } from '../../utils/formatPrice';
 import './Charts.css';
 
@@ -141,16 +141,22 @@ export function StatusDonut({ data }) {
   );
 }
 
-/** Revenue per stone: each bar in its stone color, labeled on axis and with its value. */
+/**
+ * Revenue per Infinity Stone: each bar in its stone color, labeled with its value.
+ * The axis uses the short name (Power, Space…) so all six fit on phones; the tooltip shows "Power Stone".
+ */
 export function StoneBarChart({ data }) {
-  const ordered = CHART_STONE_ORDER.map((s) => data.find((d) => d.stone === s)).filter(Boolean);
+  const ordered = CHART_STONE_ORDER.map((s) => data.find((d) => d.stone === s))
+    .filter(Boolean)
+    .map((d) => ({ ...d, stoneName: stoneName(d.stone), short: stoneName(d.stone).replace(' Stone', '') }));
   return (
     <ResponsiveContainer width="100%" height={300}>
       <BarChart data={ordered} margin={{ top: 28, right: 8, bottom: 0, left: 0 }} barCategoryGap="22%">
         <CartesianGrid vertical={false} stroke={GRID} />
-        <XAxis dataKey="color" {...axisProps} />
+        <XAxis dataKey="short" {...axisProps} interval={0} />
         <YAxis {...axisProps} axisLine={false} width={64} tickFormatter={(v) => formatPriceShort(v)} />
-        <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(42,38,34,0.04)' }} />
+        <Tooltip content={<ChartTooltip labelFormatter={(label, payload) => payload[0]?.payload.stoneName ?? label} />}
+          cursor={{ fill: 'rgba(42,38,34,0.04)' }} />
         <Bar dataKey="revenue" name="Revenue" radius={[4, 4, 0, 0]} isAnimationActive={false}>
           {ordered.map((d) => (
             <Cell key={d.stone} fill={STONE_THEME[d.stone].base} />
