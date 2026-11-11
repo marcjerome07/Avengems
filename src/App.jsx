@@ -15,6 +15,7 @@ import Shop from './pages/Shop';
 import ProductDetails from './pages/ProductDetails';
 import Collections from './pages/Collections';
 import CollectionDetail from './pages/CollectionDetail';
+import BundleBuilder from './pages/BundleBuilder';
 import About from './pages/About';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
@@ -70,6 +71,7 @@ export default function App() {
                     <Route path="product/:slug" element={<ProductDetails />} />
                     <Route path="collections" element={<Collections />} />
                     <Route path="collections/:slug" element={<CollectionDetail />} />
+                    <Route path="bundle/:id" element={<BundleBuilder />} />
                     <Route path="about" element={<About />} />
                     <Route path="cart" element={<Cart />} />
                     <Route

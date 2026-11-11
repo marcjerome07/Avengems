@@ -12,7 +12,6 @@ import ProductGrid from '../components/product/ProductGrid';
 import { useToast } from '../context/useToast';
 import { getCollections, getFeaturedProducts, getPackages } from '../services/productService';
 import { FEATURED_PRODUCTS_LIMIT } from '../config/store';
-import { formatPriceShort } from '../utils/formatPrice';
 import { validateEmail } from '../utils/validators';
 import { DIAMOND_STYLES } from '../utils/stoneTheme';
 import './Home.css';
@@ -131,7 +130,7 @@ function PackagesTeaser() {
           </h2>
           <p className="muted">
             {signature
-              ? `The ${signature.name}: ${signature.includes}, from ${formatPriceShort(signature.priceMin)}.`
+              ? `The ${signature.name}: ${signature.includes}. Pick one piece for each stone.`
               : 'Six pieces representing the six stones, presented in a premium jewelry box.'}
           </p>
         </div>
