@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as cartService from '../services/cartService';
-import { stoneFromColor } from '../utils/stoneTheme';
 import { getCustomization } from '../utils/customization';
 import { useToast } from './useToast';
 import { useAuth } from './useAuth';
@@ -43,29 +42,32 @@ export function CartProvider({ children }) {
   }, []);
 
   const addItem = useCallback(
-    (product, { color = product.color, size = product.defaultSize, quantity = 1, silent = false } = {}) => {
+    (product, { size = product.defaultSize, quantity = 1, silent = false } = {}) => {
+      // Stone color is fixed per product; a caller can never change it.
+      const color = product.color;
       if (product.stock <= 0) {
         showToast('Sorry, this piece is out of stock.', { type: 'error' });
         return false;
       }
-      const { customized, fee } = getCustomization(product, color, size);
+      const { customized, fee } = getCustomization(product, size);
       const lineId = cartService.lineIdFor(product.id, color, size);
       const maxQty = Math.min(MAX_PER_LINE, product.stock);
 
       setItems((prev) => {
         const existing = prev.find((i) => i.lineId === lineId);
         if (existing) {
-          return prev.map((i) => (i.lineId === lineId ? { ...i, quantity: Math.min(maxQty, i.quantity + quantity) } : i));
+          return prev.map((i) => (i.lineId === lineId ? { ...i, selected: true, quantity: Math.min(maxQty, i.quantity + quantity) } : i));
         }
         return [
           ...prev,
           {
             lineId,
+            selected: true,
             productId: product.id,
             slug: product.slug,
             name: product.name,
             type: product.type,
-            stone: stoneFromColor(color),
+            stone: product.stone,
             color,
             size,
             material: product.material,
@@ -75,8 +77,7 @@ export function CartProvider({ children }) {
             unitPrice: product.price + fee,
             quantity: Math.min(maxQty, quantity),
             maxQuantity: maxQty,
-            // Photos only make sense if the stone color wasn't changed.
-            images: color === product.color ? product.images : [],
+            images: product.images,
           },
         ];
       });
@@ -100,16 +101,29 @@ export function CartProvider({ children }) {
     [showToast, setItems],
   );
 
+  const removeItems = useCallback(
+    (lineIds) => {
+      const remove = new Set(lineIds);
+      if (!remove.size) return;
+      setItems((prev) => prev.filter((i) => !remove.has(i.lineId)));
+      showToast(`Removed ${remove.size} ${remove.size === 1 ? 'item' : 'items'} from your cart.`, { type: 'info' });
+    },
+    [showToast, setItems],
+  );
+
   const clearCart = useCallback(() => setItems([]), [setItems]);
+  const selectItem = useCallback((lineId, selected) => setItems((previous) => cartService.selectCartItems(previous, selected, lineId)), [setItems]);
+  const selectAll = useCallback((selected) => setItems((previous) => cartService.selectCartItems(previous, selected)), [setItems]);
   const completeCheckout = useCallback((purchased) => setItems((previous) => cartService.subtractPurchasedItems(previous, purchased)), [setItems]);
-  const { quote, loading: quoteLoading, error: quoteError, reload: reloadQuote } = useCartQuote(items);
+  const selectedItems = useMemo(() => cartService.selectedCartItems(items), [items]);
+  const { quote, loading: quoteLoading, error: quoteError, reload: reloadQuote } = useCartQuote(selectedItems);
   const itemCount = items.reduce((count, item) => count + item.quantity, 0);
   const totals = quote?.totals ?? null;
-  const quotedItems = useMemo(() => quote?.items.map((item, index) => ({ ...item, lineId: items[index]?.lineId ?? item.lineId })) ?? null, [quote, items]);
+  const quotedItems = useMemo(() => quote?.items.map((item, index) => ({ ...item, lineId: selectedItems[index]?.lineId ?? item.lineId })) ?? null, [quote, selectedItems]);
 
   const value = useMemo(
-    () => ({ items, totals, quotedItems, quoteLoading, quoteError, reloadQuote, itemCount, addItem, updateQuantity, removeItem, clearCart, completeCheckout }),
-    [items, totals, quotedItems, quoteLoading, quoteError, reloadQuote, itemCount, addItem, updateQuantity, removeItem, clearCart, completeCheckout],
+    () => ({ items, selectedItems, selectItem, selectAll, totals, quotedItems, quoteLoading, quoteError, reloadQuote, itemCount, addItem, updateQuantity, removeItem, removeItems, clearCart, completeCheckout }),
+    [items, selectedItems, selectItem, selectAll, totals, quotedItems, quoteLoading, quoteError, reloadQuote, itemCount, addItem, updateQuantity, removeItem, removeItems, clearCart, completeCheckout],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

@@ -253,6 +253,15 @@
   border: var(--border);
 }
 
+.cell-product__placeholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background: var(--surface-soft);
+  color: var(--text-subtle);
+}
+
 .cell-product__name {
   color: var(--ink);
   font-weight: 500;
@@ -488,4 +497,418 @@
     min-width: 0;
     flex: 1 1 100%;
   }
+}
+
+/* Product image upload (Add / Edit product modal) */
+.pimg {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+.pimg .field__label {
+  margin-bottom: var(--space-2);
+}
+.pimg__drop {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  padding: var(--space-5) var(--space-4);
+  text-align: center;
+  background: var(--bg);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-subtle);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.pimg__drop.is-dragging {
+  border-color: var(--bronze-light);
+  background: var(--linen);
+}
+.pimg__drop.is-full {
+  opacity: 0.65;
+}
+.pimg__drop-text {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--fs-md);
+  color: var(--ink);
+}
+.pimg__browse,
+.pimg__link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--bronze);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.pimg__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-xs);
+}
+.pimg__browse:focus-visible,
+.pimg__link:focus-visible,
+.pimg__icon:focus-visible,
+.pimg__remove:focus-visible {
+  outline: 2px solid var(--bronze-light);
+  outline-offset: 2px;
+}
+.pimg__notices {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--error-bg);
+  border-radius: var(--radius-sm);
+  color: var(--error);
+  font-size: var(--fs-xs);
+}
+.pimg__notices ul {
+  margin: 0;
+  padding-left: 1.1em;
+}
+.pimg__notices .pimg__link {
+  color: var(--error);
+}
+.pimg__grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: var(--space-3);
+}
+.pimg__item {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.pimg__thumb {
+  position: relative;
+  aspect-ratio: 1;
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--sand);
+}
+.pimg__item.is-error .pimg__thumb {
+  border-color: var(--error);
+}
+.pimg__thumb img,
+.pimg__empty {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.pimg__item.is-uploading img,
+.pimg__item.is-error img {
+  opacity: 0.55;
+}
+.pimg__cover {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--ink);
+  color: var(--surface);
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.pimg__progress {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.7);
+  overflow: hidden;
+}
+.pimg__progress span {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+  transition: width 0.2s ease;
+}
+.pimg__remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.pimg__remove:hover {
+  border-color: var(--line-strong);
+  color: var(--error);
+}
+.pimg__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  min-height: 28px;
+}
+.pimg__icon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.pimg__icon:hover:not(:disabled) {
+  background: var(--sand);
+  color: var(--ink);
+}
+.pimg__icon:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.pimg__status {
+  font-size: var(--fs-xs);
+  color: var(--text-subtle);
+  align-self: center;
+}
+.pimg__error {
+  display: grid;
+  gap: 2px;
+}
+.pimg__error .field__error {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Order email history (admin order details) */
+.order-mail {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: var(--border);
+}
+.order-mail__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.order-mail__title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--fs-md);
+  font-weight: 500;
+  color: var(--ink);
+}
+.order-mail__hint {
+  margin: var(--space-1) 0 var(--space-3);
+  font-size: var(--fs-xs);
+  color: var(--text-subtle);
+}
+.order-mail__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: var(--border);
+  border-radius: var(--radius-sm);
+}
+.order-mail__row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-sm);
+}
+.order-mail__row + .order-mail__row {
+  border-top: var(--border);
+}
+.order-mail__what {
+  display: grid;
+  min-width: 0;
+}
+.order-mail__what span {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  overflow-wrap: anywhere;
+}
+.order-mail__state {
+  display: grid;
+  justify-items: end;
+  text-align: right;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+.order-mail__state.is-sent {
+  color: var(--ink-soft);
+}
+.order-mail__state.is-failed {
+  color: var(--error);
+  font-weight: 500;
+}
+.order-mail__error {
+  font-weight: 400;
+  max-width: 32ch;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Order table: filters, sortable headers, pagination ---------- */
+.order-filters {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.order-filters__status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.order-filters__status .pill {
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  font-size: var(--fs-sm);
+}
+
+.order-filters__status .status-tabs__count {
+  font-size: var(--fs-xs);
+  opacity: 0.7;
+}
+
+.order-filters__row .field:not(.field--grow) {
+  min-width: 160px;
+  flex: 0 1 180px;
+}
+
+.order-filters__clear {
+  align-self: flex-end;
+}
+
+/* Only needed when the table collapses into cards */
+.order-filters__row .order-filters__sort {
+  display: none;
+}
+
+.sort-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  white-space: nowrap;
+}
+
+.sort-head:hover,
+.sort-head.is-active {
+  color: var(--ink);
+}
+
+.sort-head svg {
+  opacity: 0.55;
+}
+
+.sort-head.is-active svg {
+  opacity: 1;
+}
+
+.sort-head--end {
+  flex-direction: row-reverse;
+}
+
+.order-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.order-pagination__summary,
+.order-pagination__page {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.order-pagination__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.order-pagination__size .field__input {
+  min-height: 40px;
+  font-size: var(--fs-sm);
+}
+
+.order-pagination .icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+@media (max-width: 767px) {
+  /* Stacked-card tables have no header row; sort with the dropdown instead */
+  .order-filters__row .order-filters__sort {
+    display: flex;
+  }
+
+  .order-pagination {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .order-pagination__controls {
+    justify-content: space-between;
+  }
+}
+
+/* Image grid: drag to reorder */
+.pimg__item[draggable='true'] {
+  cursor: grab;
+}
+
+.pimg__item.is-dragged {
+  opacity: 0.45;
+}
+
+.pimg__item.is-drop-target .pimg__thumb {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px var(--bronze-light);
+}
+
+.pimg__grip {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--ink-soft);
 }

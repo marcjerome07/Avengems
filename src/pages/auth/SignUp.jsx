@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, User, CircleAlert } from 'lucide-react';
 import AuthShell, { FormAlert } from '../../components/auth/AuthShell';
-import PasswordChecklist from '../../components/auth/PasswordChecklist';
-import GoogleButton from '../../components/auth/GoogleButton';
+import PasswordChecklist, { PasswordMatch } from '../../components/auth/PasswordChecklist';
+import GoogleLoginButton from '../../components/auth/GoogleLoginButton';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import { useToast } from '../../context/useToast';
 import { register } from '../../services/authService';
-import { runValidators, validateName, validateEmail, validatePassword, validatePasswordMatch, PASSWORD_RULES } from '../../utils/validators';
+import { runValidators, validateName, validateEmail, validatePassword, validatePasswordMatch } from '../../utils/validators';
+import { checkPassword } from '../../utils/passwordRules';
 
 export default function SignUp() {
   const navigate = useNavigate();
@@ -17,13 +18,23 @@ export default function SignUp() {
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [remember, setRemember] = useState(true);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
+  const [touched, setTouched] = useState({});
+
+  const nameRule = (v) => (v.length > 100 ? 'Use at most 100 characters for your name.' : validateName(v));
+  const password = checkPassword(values.password, values.confirm);
+  // Inline errors appear once a field has been visited; submit stays disabled until everything passes.
+  const nameError = errors.name || (touched.name ? nameRule(values.name) : '');
+  const emailError = errors.email || (touched.email ? validateEmail(values.email) : '');
+  const passwordError = errors.password || (password.tooLong ? 'Use at most 128 characters for your password.' : '');
+  const formValid = !nameRule(values.name) && !validateEmail(values.email) && password.valid && password.matches === true;
 
   // Requirements show while the password is being created: when the field (or its
   // show/hide button) has focus, when a typed password still misses a rule, or after
   // a failed submit flagged the password.
-  const passwordComplete = PASSWORD_RULES.every((rule) => rule.test(values.password));
-  const showChecklist = passwordFocused || Boolean(errors.password) || (values.password !== '' && !passwordComplete);
+  const showChecklist = passwordFocused || Boolean(passwordError) || (values.password !== '' && !password.allMet);
 
   function handlePasswordBlur(e) {
     // Focus moving to the eye button inside the same group still counts as "in the field".
@@ -36,15 +47,14 @@ export default function SignUp() {
     setFormError('');
   }
 
-  // Live mismatch feedback once the user has typed a confirmation.
-  const confirmError = errors.confirm || (values.confirm && values.confirm !== values.password ? 'Passwords do not match.' : '');
-
   async function handleSubmit(e) {
     e.preventDefault();
+    if (googleLoading) return;
+    setTouched({ name: true, email: true });
     const result = runValidators(values, {
-      name: (v) => v.length > 100 ? 'Use at most 100 characters for your name.' : validateName(v),
+      name: nameRule,
       email: validateEmail,
-      password: (v) => v.length > 128 ? 'Use at most 128 characters for your password.' : validatePassword(v),
+      password: (v) => (v.length > 128 ? 'Use at most 128 characters for your password.' : validatePassword(v)),
       confirm: (v, all) => validatePasswordMatch(all.password, v),
     });
     setErrors(result);
@@ -80,7 +90,8 @@ export default function SignUp() {
           autoComplete="name"
           value={values.name}
           onChange={(e) => set('name', e.target.value)}
-          error={errors.name}
+          onBlur={() => setTouched((t) => ({ ...t, name: true }))}
+          error={nameError}
         />
         <Input
           label="Email"
@@ -89,7 +100,8 @@ export default function SignUp() {
           autoComplete="email"
           value={values.email}
           onChange={(e) => set('email', e.target.value)}
-          error={errors.email}
+          onBlur={() => setTouched((t) => ({ ...t, email: true }))}
+          error={emailError}
         />
         <div className="pw-field" onFocus={() => setPasswordFocused(true)} onBlur={handlePasswordBlur}>
           <Input
@@ -98,7 +110,7 @@ export default function SignUp() {
             autoComplete="new-password"
             value={values.password}
             onChange={(e) => set('password', e.target.value)}
-            error={errors.password}
+            error={passwordError}
             aria-describedby={showChecklist ? 'pw-rules' : undefined}
           />
           <div className={`pw-reveal ${showChecklist ? 'is-open' : ''}`} aria-hidden={!showChecklist}>
@@ -113,17 +125,29 @@ export default function SignUp() {
           autoComplete="new-password"
           value={values.confirm}
           onChange={(e) => set('confirm', e.target.value)}
-          error={confirmError}
+          error={errors.confirm && values.confirm ? '' : errors.confirm}
+          aria-describedby={values.confirm ? 'pw-match' : undefined}
         />
-        <Button type="submit" size="lg" fullWidth loading={loading}>
+        <PasswordMatch password={values.password} confirm={values.confirm} id="pw-match" />
+        <Button type="submit" size="lg" fullWidth loading={loading} disabled={googleLoading || !formValid}
+          aria-describedby={formValid ? undefined : 'signup-submit-hint'}>
           {loading ? 'Creating account…' : 'Create Account'}
         </Button>
+        {!formValid && (
+          <p className="auth-submit-hint" id="signup-submit-hint">
+            Fill in every field and meet all password requirements to continue.
+          </p>
+        )}
         <p className="demo-box__text" style={{ textAlign: 'center' }}>
           Check your email to complete confirmation before signing in.
         </p>
       </form>
-
-      <GoogleButton />
+      <div className="auth-divider">or</div>
+      <label className="checkbox">
+        <input type="checkbox" checked={remember} disabled={googleLoading} onChange={(event) => setRemember(event.target.checked)} />
+        Remember me for Google sign-in
+      </label>
+      <GoogleLoginButton remember={remember} disabled={loading} onPendingChange={setGoogleLoading} />
     </AuthShell>
   );
 }

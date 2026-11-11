@@ -13,7 +13,9 @@ export default function Orders() {
   useDocumentTitle('My Orders');
   const { user } = useAuth();
   const [status, setStatus] = useState('All');
-  const { data, loading, error, reload } = useServiceData(() => getOrdersByUser(user.id), [user.id]);
+  const { data, loading, error, reload, setData } = useServiceData(() => getOrdersByUser(user.id), [user.id]);
+  // A cancelled order updates in place, so it leaves the Pending tab and appears under Cancelled.
+  const handleCancelled = (updated) => setData((list) => (list ?? []).map((o) => (o.id === updated.id ? { ...o, ...updated } : o)));
   const orders = data ?? [];
   const filtered = status === 'All' ? orders : orders.filter((o) => o.status === status);
   const countFor = (s) => (s === 'All' ? orders.length : orders.filter((o) => o.status === s).length);
@@ -42,7 +44,7 @@ export default function Orders() {
       {error ? <div role="alert"><p>{error.message}</p><Button onClick={reload}>Retry orders</Button></div> : loading ? (
         <TableSkeleton rows={5} cols={5} />
       ) : filtered.length ? (
-        <OrdersTable orders={filtered} />
+        <OrdersTable orders={filtered} ownerId={user.id} onCancelled={handleCancelled} onRefresh={reload} />
       ) : (
         <EmptyState
           icon={PackageOpen}

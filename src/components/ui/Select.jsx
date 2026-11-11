@@ -3,9 +3,10 @@ import { ChevronDown } from 'lucide-react';
 import './Field.css';
 
 /** Labeled native select. options: [{ value, label }] */
-export default function Select({ label, error, options = [], id, className = '', hideLabel = false, ...rest }) {
+export default function Select({ label, error, hint, options = [], id, className = '', hideLabel = false, ...rest }) {
   const autoId = useId();
   const selectId = id ?? `sel${autoId.replace(/[^a-zA-Z0-9]/g, '')}`;
+  const describedBy = error ? `${selectId}-error` : hint ? `${selectId}-hint` : undefined;
 
   return (
     <div className={`field ${error ? 'has-error' : ''} ${className}`}>
@@ -19,7 +20,7 @@ export default function Select({ label, error, options = [], id, className = '',
           id={selectId}
           className="field__input field__select"
           aria-invalid={error ? 'true' : undefined}
-          aria-describedby={error ? `${selectId}-error` : undefined}
+          aria-describedby={describedBy}
           {...rest}
         >
           {options.map((opt) => (
@@ -30,6 +31,11 @@ export default function Select({ label, error, options = [], id, className = '',
         </select>
         <ChevronDown className="field__chevron" size={18} strokeWidth={1.6} aria-hidden="true" />
       </div>
+      {hint && !error && (
+        <p className="field__hint" id={`${selectId}-hint`}>
+          {hint}
+        </p>
+      )}
       {error && (
         <p className="field__error" id={`${selectId}-error`} role="alert">
           {error}

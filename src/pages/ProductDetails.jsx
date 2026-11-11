@@ -10,14 +10,13 @@ import Skeleton from '../components/ui/Skeleton';
 import EmptyState from '../components/ui/EmptyState';
 import QuantitySelector from '../components/ui/QuantitySelector';
 import ProductMedia from '../components/product/ProductMedia';
-import ColorSwatch from '../components/product/ColorSwatch';
 import ProductGrid from '../components/product/ProductGrid';
 import { useCart } from '../context/useCart';
 import useAddToCart from '../hooks/useAddToCart';
 import { useWishlist } from '../context/useWishlist';
 import { getProductBySlug, getRelatedProducts, getProductInfo, CUSTOMIZATION_FEE_RANGE } from '../services/productService';
 import { formatPrice, formatPriceShort } from '../utils/formatPrice';
-import { STONE_ORDER, stoneTheme, stoneFromColor, stoneVar } from '../utils/stoneTheme';
+import { stoneTheme, stoneVar } from '../utils/stoneTheme';
 import { getCustomization, isCustomizable } from '../utils/customization';
 import './ProductDetails.css';
 
@@ -28,7 +27,6 @@ function ProductView({ product }) {
   const { addItem } = useCart();
   const addToCart = useAddToCart();
   const { isWishlisted, isPending, toggle, loading: wishlistLoading } = useWishlist();
-  const [color, setColor] = useState(product.color);
   const [size, setSize] = useState(product.defaultSize);
   const [quantity, setQuantity] = useState(1);
   const [view, setView] = useState(0);
@@ -43,22 +41,24 @@ function ProductView({ product }) {
     };
   }, [product]);
 
-  const stone = stoneFromColor(color);
+  // Each piece belongs to one Infinity Stone, so its stone color is fixed.
+  const { stone, color } = product;
+  const stoneName = `${stone.charAt(0).toUpperCase()}${stone.slice(1)} Stone`;
   const outOfStock = product.stock <= 0;
   const customizable = isCustomizable(product);
-  const { customized, fee } = getCustomization(product, color, size);
+  const { customized, fee } = getCustomization(product, size);
   const unitPrice = product.price + fee;
   const wished = isWishlisted(product.id);
   const info = getProductInfo(product);
   const photoCount = product.images?.length ?? 0;
-  const views = photoCount && stone === product.stone ? product.images.map((_, i) => i) : [0, 1, 2, 3];
+  const views = photoCount ? product.images.map((_, i) => i) : [0, 1, 2, 3];
 
   function handleAdd() {
-    return addToCart(product, { color, size, quantity });
+    return addToCart(product, { size, quantity });
   }
 
   function handleBuyNow() {
-    if (addItem(product, { color, size, quantity, silent: true })) navigate('/checkout');
+    if (addItem(product, { size, quantity, silent: true })) navigate('/checkout');
   }
 
   const accordionItems = [
@@ -187,6 +187,13 @@ function ProductView({ product }) {
               <dd>{product.material}</dd>
             </div>
             <div>
+              <dt>Stone</dt>
+              <dd className="pdp__stone">
+                <span className="stone-dot" style={{ background: stoneVar(stone) }} aria-hidden="true" />
+                {stoneName} · {color}
+              </dd>
+            </div>
+            <div>
               <dt>Gemstone</dt>
               <dd>{product.gemstone}</dd>
             </div>
@@ -238,26 +245,6 @@ function ProductView({ product }) {
                 </fieldset>
               )}
 
-              {product.customizable.color && (
-                <fieldset className="customize__group">
-                  <legend>
-                    Gemstone Color <span>· {color}</span>
-                  </legend>
-                  <div className="color-options" role="radiogroup" aria-label="Gemstone color">
-                    {STONE_ORDER.map((s) => (
-                      <ColorSwatch
-                        key={s}
-                        stone={s}
-                        role="radio"
-                        showLabel
-                        selected={stone === s}
-                        onClick={() => setColor(stoneTheme(s).color)}
-                      />
-                    ))}
-                  </div>
-                </fieldset>
-              )}
-
               <div className="customize__summary" aria-live="polite">
                 <p className="customize__summary-title">Your selection</p>
                 <ul role="list">
@@ -282,7 +269,7 @@ function ProductView({ product }) {
                 </ul>
                 {!customized && (
                   <p className="customize__hint">
-                    Change the size or stone color to customize this piece for {formatPrice(product.customizationFee)}.
+                    Choose a different size to customize this piece for {formatPrice(product.customizationFee)}.
                   </p>
                 )}
               </div>

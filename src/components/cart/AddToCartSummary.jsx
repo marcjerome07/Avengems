@@ -1,13 +1,14 @@
 import ProductMedia from '../product/ProductMedia';
 import { getCustomization } from '../../utils/customization';
 import { formatPrice } from '../../utils/formatPrice';
-import { stoneFromColor, stoneVar } from '../../utils/stoneTheme';
+import { stoneVar } from '../../utils/stoneTheme';
 import './AddToCartSummary.css';
 
 /** What the shopper is about to add, shown inside the add-to-cart confirm dialog. */
-export default function AddToCartSummary({ product, color = product.color, size = product.defaultSize, quantity = 1 }) {
-  const stone = stoneFromColor(color);
-  const { customized, fee } = getCustomization(product, color, size);
+// The stone color is fixed by the product (each piece belongs to one stone).
+export default function AddToCartSummary({ product, size = product.defaultSize, quantity = 1 }) {
+  const { stone, color } = product;
+  const { customized, fee } = getCustomization(product, size);
   const unitPrice = product.price + fee;
 
   return (

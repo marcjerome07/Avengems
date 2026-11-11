@@ -16,7 +16,8 @@ const IN_PROGRESS = ['Pending', 'Processing', 'Shipped'];
 export default function Overview() {
   const { user } = useAuth();
   const { count: wishlistCount, loading: wishlistLoading, error: wishlistError } = useWishlist();
-  const { data: orders, loading, error, reload } = useServiceData(() => getOrdersByUser(user.id), [user.id]);
+  const { data: orders, loading, error, reload, setData } = useServiceData(() => getOrdersByUser(user.id), [user.id]);
+  const handleCancelled = (updated) => setData((list) => (list ?? []).map((o) => (o.id === updated.id ? { ...o, ...updated } : o)));
 
   const list = orders ?? [];
   const pending = list.filter((o) => IN_PROGRESS.includes(o.status)).length;
@@ -60,7 +61,7 @@ export default function Overview() {
         {error ? <div role="alert"><p>{error.message}</p><Button onClick={reload}>Retry orders</Button></div> : loading ? (
           <TableSkeleton rows={4} cols={5} />
         ) : list.length ? (
-          <OrdersTable orders={list.slice(0, 5)} />
+          <OrdersTable orders={list.slice(0, 5)} ownerId={user.id} onCancelled={handleCancelled} onRefresh={reload} />
         ) : (
           <EmptyState compact icon={ShoppingBag} title="No orders yet" message="When you place an order, it will appear here.">
             <Button to="/shop">Start shopping</Button>

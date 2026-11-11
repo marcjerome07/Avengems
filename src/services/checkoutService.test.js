@@ -13,7 +13,7 @@ after(() => vite.close());
 const { createCommerceClient } = await vite.ssrLoadModule('/src/services/commerceService.js');
 const { orderRequest } = await vite.ssrLoadModule('/src/services/orderService.js');
 const attempts = await vite.ssrLoadModule('/src/services/checkoutAttempts.js');
-const { cartSelections, subtractPurchasedItems } = await vite.ssrLoadModule('/src/services/cartService.js');
+const { cartSelections, subtractPurchasedItems, selectedCartItems, selectCartItems, loadCart, saveCart, GUEST_CART } = await vite.ssrLoadModule('/src/services/cartService.js');
 const { QuoteTotals, MiniItems } = await vite.ssrLoadModule('/src/components/cart/OrderSummary.jsx');
 const { default: Checkout } = await vite.ssrLoadModule('/src/pages/Checkout.jsx');
 const { default: Cart } = await vite.ssrLoadModule('/src/pages/Cart.jsx');
@@ -50,6 +50,11 @@ function storage(t, blocked = false) {
     setItem: (key, value) => { if (blocked) throw new Error('blocked'); rows.set(key, value); },
     removeItem: (key) => rows.delete(key),
   } };
+  globalThis.window.localStorage = {
+    getItem: (key) => rows.get(key) ?? null,
+    setItem: (key, value) => { if (blocked) throw new Error('blocked'); rows.set(key, value); },
+    removeItem: (key) => rows.delete(key),
+  };
   t.after(() => { globalThis.window = previous; });
   return rows;
 }
@@ -147,6 +152,7 @@ test('only definite pre-write/transaction rejections allow abandoning a checkout
   assert.equal(attempts.definitiveCheckoutFailure({ status: 409, code: 'IDEMPOTENCY_CONFLICT' }), false);
   assert.equal(attempts.definitiveCheckoutFailure({ code: 'CHECKOUT_MIGRATION_REQUIRED' }), true);
   assert.equal(attempts.definitiveCheckoutFailure({ code: 'INSUFFICIENT_STOCK' }), true);
+  assert.equal(attempts.definitiveCheckoutFailure({ code: 'PAYMENTS_DISABLED' }), true);
 });
 
 test('quote feedback separates loading, stock errors/retry, and authoritative totals', () => {
@@ -163,10 +169,100 @@ function renderPage(Page, cart) {
   return renderToString(h(MemoryRouter, null, h(AuthContext.Provider, { value: { user } },
     h(ToastContext.Provider, { value: { showToast() {} } }, h(CartContext.Provider, { value: cart }, h(ConfirmContext.Provider, { value: async () => true }, h(Page)))))));
 }
+
+test('per-line and Select All choices persist on refresh and legacy carts default selected', (t) => {
+  storage(t);
+  const other = { ...item, lineId: 'other', productId: 'p-02', name: 'Unselected Bracelet' };
+  saveCart(GUEST_CART, [item, other]);
+  let cart = loadCart(GUEST_CART);
+  assert.equal(selectedCartItems(cart).length, 2);
+  cart = selectCartItems(cart, false, other.lineId);
+  saveCart(GUEST_CART, cart);
+  assert.deepEqual(loadCart(GUEST_CART), cart);
+  assert.deepEqual(cartSelections(loadCart(GUEST_CART)), cartSelections([item]));
+  assert.deepEqual(selectedCartItems(selectCartItems(cart, false)), []);
+  assert.equal(selectedCartItems(selectCartItems(cart, true)).length, 2);
+  assert.deepEqual(cartSelections(selectCartItems(cart, false, item.lineId)), []);
+  assert.equal(cart[0].quantity, item.quantity);
+});
+
+test('selected checkout payload excludes unselected lines, browser prices and selection flags', () => {
+  const unselected = { ...item, productId: 'sold-out', selected: false, quantity: 99 };
+  const safe = orderRequest({ ...payload, items: [{ ...item, selected: true }, unselected] });
+  assert.deepEqual(safe.items, cartSelections([item]));
+  assert.doesNotMatch(JSON.stringify(safe), /sold-out|selected|basePrice|customizationFee|DO-NOT-SEND/);
+  assert.throws(() => orderRequest({ ...payload, items: [unselected] }), { code: 'EMPTY_SELECTION' });
+});
+
+test('selecting and purchasing one variant preserves the unselected variant of the same product', () => {
+  const blue = { ...item, lineId: 'p-01|Blue|US 6', color: 'Blue', size: 'US 6', selected: false };
+  const cart = selectCartItems([item, blue], false, item.lineId);
+  const chosen = selectCartItems(cart, true, blue.lineId);
+  const body = orderRequest({ ...payload, items: chosen });
+  assert.deepEqual(body.items, [{ productId: item.productId, quantity: 2, color: 'Blue', size: 'US 6' }]);
+  assert.deepEqual(subtractPurchasedItems(chosen, body.items), [{ ...item, selected: false }]);
+});
+
+test('selection changes after an uncertain checkout cannot change its key, contents or removal scope', async (t) => {
+  storage(t);
+  const other = { ...item, lineId: 'unselected', productId: 'p-02', selected: false, quantity: 1 };
+  let cart = [item, other];
+  const first = attempts.beginCheckout(user.id, orderRequest({ ...payload, items: cart }));
+  await assert.rejects(attempts.confirmCheckoutAttempt(first, {
+    placeOrder: async () => { throw new Error('Network interrupted'); },
+    completeCart: () => assert.fail('Unconfirmed purchase must not remove anything'),
+  }));
+  cart = selectCartItems(selectCartItems(cart, false), true, other.lineId);
+  cart[0] = { ...cart[0], quantity: 3 };
+  const retry = attempts.beginCheckout(user.id, orderRequest({ ...payload, items: cart }));
+  assert.deepEqual(retry, first);
+  await attempts.confirmCheckoutAttempt(retry, {
+    placeOrder: async (body, options) => {
+      assert.deepEqual(body.items, cartSelections([item]));
+      assert.equal(options.idempotencyKey, first.key);
+      return { id: 'confirmed-subset', items: [] };
+    }, completeCart: (purchased) => { cart = subtractPurchasedItems(cart, purchased); },
+  });
+  assert.equal(cart[0].quantity, 1);
+  assert.equal(cart[0].selected, false);
+  assert.deepEqual(cart[1], { ...other, selected: true });
+  assert.equal(attempts.pendingCheckout(user.id), null);
+});
+
+test('cart keeps unselected rows visible but checkout summaries contain only selected rows', (t) => {
+  storage(t);
+  const other = { ...item, productId: 'p-02', lineId: 'other', name: 'Unselected Bracelet', selected: false };
+  const cart = { items: [item, other], totals, quotedItems: [item], itemCount: 4,
+    quoteLoading: false, quoteError: null, selectItem() {}, selectAll() {}, completeCheckout() {} };
+  const html = renderPage(Cart, cart).replace(/<!--.*?-->/g, '');
+  assert.match(html, /Select All/);
+  assert.match(html, /aria-checked="mixed"/);
+  assert.match(html, /1 of 2 items selected/);
+  assert.match(html, /Unselected Bracelet/);
+  const checkout = renderPage(Checkout, cart);
+  assert.match(checkout, /Test Ring/);
+  assert.doesNotMatch(checkout, /Unselected Bracelet/);
+  const empty = { ...cart, items: selectCartItems(cart.items, false), totals: null, quotedItems: null };
+  const noSelection = renderPage(Cart, empty);
+  assert.match(noSelection, /Select at least one item/);
+  assert.doesNotMatch(noSelection, /href="\/checkout"/);
+  assert.match(renderPage(Checkout, empty), /No items selected/);
+});
+
+test('pending checkout display uses saved lines instead of a newly selected basket', (t) => {
+  storage(t);
+  attempts.beginCheckout(user.id, orderRequest(payload));
+  const other = { ...item, lineId: 'other', productId: 'p-02', name: 'New Selection' };
+  const html = renderPage(Checkout, { items: [{ ...item, selected: false }, other], totals,
+    quotedItems: [other], quoteLoading: false, completeCheckout() {} });
+  assert.match(html, /Retry pending order/);
+  assert.match(html, /Test Ring/);
+  assert.doesNotMatch(html, /New Selection/);
+});
 test('Cart and Checkout wait for server quotes instead of presenting browser totals as authoritative', (t) => {
   storage(t);
   const base = { items: [item], totals: null, quotedItems: null, itemCount: 2, quoteLoading: true, quoteError: null, reloadQuote() {}, completeCheckout() {} };
-  const cart = renderPage(Cart, base); assert.match(cart, /Awaiting server price/); assert.match(cart, /Validating prices and stock/);
+  const cart = renderPage(Cart, base); assert.match(cart, /Checking current price/); assert.match(cart, /Validating prices and stock/);
   const checkout = renderPage(Checkout, base); assert.match(checkout, /Validating prices and stock/); assert.doesNotMatch(checkout, /NaN/);
   const error = renderPage(Checkout, { ...base, quoteLoading: false, quoteError: new Error('Stock changed') });
   assert.match(error, /Stock changed/); assert.match(error, /Retry cart quote/);

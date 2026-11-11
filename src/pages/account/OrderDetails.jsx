@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Check, PackageSearch } from 'lucide-react';
+import { ArrowLeft, Check, PackageSearch, X } from 'lucide-react';
 import EmptyState from '../../components/ui/EmptyState';
 import Button from '../../components/ui/Button';
 import Skeleton from '../../components/ui/Skeleton';
@@ -9,7 +9,9 @@ import { TotalsList, MiniItems } from '../../components/cart/OrderSummary';
 import { useAuth } from '../../context/useAuth';
 import { getOrderById, getOrdersByUser, PAYMENT_LABELS } from '../../services/orderService';
 import CancelOrderAction from '../../components/account/CancelOrderAction';
+import { getCancellationReasons, cancellationReasonText } from '../../services/cancellationReasons';
 import OrderReference from '../../components/account/OrderReference';
+import PaymentActions, { PaymentStatus } from '../../components/account/PaymentStatus';
 import { orderReference } from '../../utils/orderReference';
 import useServiceData from '../../hooks/useServiceData';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
@@ -17,13 +19,26 @@ import { formatDate } from '../../utils/formatPrice';
 
 const FLOW = ['Pending', 'Processing', 'Shipped', 'Delivered'];
 
-export function Timeline({ status }) {
+export function Timeline({ status, reason }) {
   if (status === 'Cancelled') {
-    return <p className="order-cancelled">This order was cancelled. No shipment is being prepared. No real payment or refund is processed in this demonstration.</p>;
+    return (
+      <div className="timeline-cancelled">
+        <span className="timeline-cancelled__icon" aria-hidden="true">
+          <X size={16} strokeWidth={2.2} />
+        </span>
+        <div>
+          <p className="timeline-cancelled__title">Cancelled</p>
+          <p className="timeline-cancelled__text">
+            This order was cancelled. No shipment is being prepared. Refunds are reviewed separately from inventory returns.
+          </p>
+          {reason && <p className="timeline-cancelled__reason">Reason: {reason}</p>}
+        </div>
+      </div>
+    );
   }
   const current = FLOW.indexOf(status);
   return (
-    <ol className="timeline" aria-label="Order progress">
+    <ol className="timeline timeline--order" aria-label="Order progress">
       {FLOW.map((step, i) => (
         <li
           key={step}
@@ -45,7 +60,7 @@ export default function OrderDetails() {
   useDocumentTitle(`Order ${orderReference(order ?? { id })}`);
   const [notice, setNotice] = useState('');
   async function cancelled(updated) {
-    setData(updated); setNotice('Order cancelled.');
+    setData(updated); setNotice('');
     try {
       const history = await getOrdersByUser(user.id);
       const latest = history.find((entry) => entry.id === updated.id);
@@ -84,42 +99,52 @@ export default function OrderDetails() {
   return (
     <>
       {back}
-      <header className="account-head">
-        <div>
+      <header className="order-head">
+        <div className="order-head__main">
           <h1 className="account-title"><OrderReference order={order} /></h1>
-          <p className="account-subtitle">Placed on {formatDate(order.createdAt, { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <p className="order-head__meta">
+            <span>Placed on {formatDate(order.createdAt, { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+            <span aria-hidden="true">·</span>
+            <span>Payment: <PaymentStatus order={order} /></span>
+          </p>
         </div>
-        <StatusBadge status={order.status} />
+        <div className="order-head__actions">
+          <StatusBadge status={order.status} />
+          <CancelOrderAction key={`${user.id}:${order.id}`} order={order} ownerId={user.id} onCancelled={cancelled} onRefresh={reload} />
+        </div>
       </header>
-      {notice && <p role="status">{notice}</p>}
-      <CancelOrderAction key={`${user.id}:${order.id}`} order={order} ownerId={user.id} onCancelled={cancelled} onRefresh={reload} />
+      {notice && <p className="order-notice" role="status">{notice}</p>}
+      {/* Online (Xendit) payments get their own panel with retry/check actions. */}
+      {order.payment && <PaymentActions key={`${user.id}:${order.id}`} order={order} ownerId={user.id} onChanged={reload} />}
 
       <section className="panel" aria-label="Order progress">
-        <Timeline status={order.status} />
+        <Timeline status={order.status} reason={cancellationReasonText(order, getCancellationReasons(user.id))} />
       </section>
 
       <div className="order-detail__grid">
-        <section className="panel" aria-labelledby="items-title">
-          <h2 id="items-title" className="panel__title" style={{ marginBottom: 20 }}>
+        <section className="panel order-detail__items" aria-labelledby="items-title">
+          <h2 id="items-title" className="panel__title">
             Items
           </h2>
           <MiniItems items={order.items} />
         </section>
         <div className="order-detail__side">
-          <section className="panel order-detail__info">
-            <h3>Shipping</h3>
-            <p>{order.customer.name}</p>
+          <section className="panel order-detail__info" aria-labelledby="ship-title">
+            <h3 id="ship-title">Shipping</h3>
+            <p className="order-detail__strong">{order.customer.name}</p>
             <p>{order.shipping.address}</p>
             <p>
               {order.shipping.city}, {order.shipping.province} {order.shipping.postalCode}
             </p>
             <p>{order.customer.phone}</p>
           </section>
-          <section className="panel order-detail__info">
-            <h3>Payment</h3>
-            <p>{PAYMENT_LABELS[order.paymentMethod]}</p>
+          <section className="panel order-detail__info" aria-labelledby="pay-title">
+            <h3 id="pay-title">Payment</h3>
+            <p className="order-detail__strong">{PAYMENT_LABELS[order.paymentMethod]}</p>
+            <p><PaymentStatus order={order} /></p>
           </section>
-          <section className="panel">
+          <section className="panel order-detail__info" aria-labelledby="sum-title">
+            <h3 id="sum-title">Order summary</h3>
             <TotalsList totals={order} />
           </section>
         </div>

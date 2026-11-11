@@ -68,7 +68,7 @@ export default function About() {
           </p>
           <p>
             The result is a collection that is elegant first and meaningful second. Pick the stone that matches your mood, your goals, or
-            someone you love, then make it yours with an available size or stone-color option.
+            someone you love, then make it yours with an available size option.
           </p>
         </div>
       </section>

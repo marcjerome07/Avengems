@@ -50,8 +50,8 @@ test('detail uses an encoded slug and preserves customization and numeric fields
   });
   const result = await service.getProductBySlug('ring/with space?');
   assert.deepEqual(result, product);
-  assert.equal(result.price + getCustomization(result, 'Blue', 'US 8').fee, 899);
-  assert.equal(getCustomization(result, result.color, result.defaultSize).fee, 0);
+  assert.equal(result.price + getCustomization(result, 'US 8').fee, 899);
+  assert.equal(getCustomization(result, result.defaultSize).fee, 0);
 });
 
 test('API failures preserve error codes and messages', async (t) => {

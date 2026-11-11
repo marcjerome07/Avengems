@@ -1,5 +1,6 @@
 import { ApiError } from './errors.js';
 import { cents, only, invalid, toOrder } from './checkout.js';
+import { imageList } from './productImages.js';
 
 export const STATUSES = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
 export const TRANSITIONS = { Pending: ['Processing'], Processing: ['Shipped'], Shipped: ['Delivered'], Delivered: [], Cancelled: [] };
@@ -63,7 +64,7 @@ export function customerSummaries({ profiles, orders, addresses, emails }) {
   for (const order of orders) {
     const summary = history.get(order.user_id) ?? { count: 0, spent: 0, latest: null };
     summary.count++;
-    if (order.status !== 'Cancelled') summary.spent += cents(order.total);
+    if (order.status !== 'Cancelled' && (!order.payment_state || order.payment_state === 'paid')) summary.spent += cents(order.total);
     if (!Number.isSafeInteger(summary.spent)) throw new ApiError(503, 'REPORT_UNAVAILABLE', 'Report amount exceeds supported precision.');
     if (!summary.latest || String(order.created_at) > String(summary.latest.created_at)
       || (order.created_at === summary.latest.created_at && order.id < summary.latest.id)) summary.latest = order;
@@ -110,9 +111,10 @@ export function productPatch(body, creating = false) {
   const mapping = { name: 'name', type: 'type', stone: 'stone', material: 'material', price: 'price', stock: 'stock',
     shortDescription: 'short_description', details: 'details', customizationFee: 'customization_fee',
     isFeatured: 'is_featured', isNew: 'is_new', sizes: 'sizes', defaultSize: 'default_size', images: 'images', archived: 'archived' };
-  only(body, [...Object.keys(mapping), 'customizable', 'expectedStock']);
+  only(body, [...Object.keys(mapping), 'customizable', 'expectedStock', 'expectedImages']);
   if (!Object.keys(body).length) invalid('Provide product fields.');
   if (creating && Object.hasOwn(body, 'expectedStock')) invalid('expectedStock is only for inventory updates.');
+  if (creating && Object.hasOwn(body, 'expectedImages')) invalid('expectedImages is only for image updates.');
   if (creating) for (const field of ['name', 'type', 'stone', 'material', 'price', 'stock', 'shortDescription', 'sizes', 'defaultSize', 'customizable', 'customizationFee']) {
     if (!Object.hasOwn(body, field)) invalid(`${field} is required.`);
   }
@@ -126,14 +128,8 @@ export function productPatch(body, creating = false) {
     else if (key === 'sizes') {
       if (!Array.isArray(value) || value.length > 30) invalid('Provide at most 30 sizes.');
       row[column] = [...new Set(value.map((size) => text(size, 'size', 50)))];
-    } else if (key === 'images') {
-      if (!Array.isArray(value) || value.length > 10) invalid('Provide at most 10 image URLs.');
-      row[column] = value.map((url) => { const result = text(url, 'image URL', 2048); let parsed;
-        try { parsed = new URL(result); } catch { invalid('Use HTTPS image URLs.'); }
-        if (parsed.protocol !== 'https:' || parsed.username || parsed.password) invalid('Use HTTPS image URLs without credentials.');
-        return result;
-      });
-    } else if (key === 'defaultSize' && value === null) row[column] = null;
+    } else if (key === 'images') row[column] = imageList(value);
+    else if (key === 'defaultSize' && value === null) row[column] = null;
     else row[column] = text(value, key, key === 'details' ? 10000 : key === 'shortDescription' ? 500 : 150, key === 'details');
   }
   if (row.type && !TYPES.includes(row.type)) invalid('Unsupported jewelry type.');
@@ -153,6 +149,12 @@ export function productPatch(body, creating = false) {
     if (!Object.hasOwn(body, 'expectedStock')) invalid('Inventory changes require expectedStock.');
     stock(body.expectedStock);
   } else if (Object.hasOwn(body, 'expectedStock')) invalid('expectedStock requires a stock change.');
+  // Like expectedStock: image edits name the list they were based on, so a stale
+  // form cannot silently overwrite (or delete files from) another admin's changes.
+  if (!creating && Object.hasOwn(body, 'images')) {
+    if (!Object.hasOwn(body, 'expectedImages')) invalid('Image changes require expectedImages.');
+    imageList(body.expectedImages, 10);
+  } else if (Object.hasOwn(body, 'expectedImages')) invalid('expectedImages requires an image change.');
   if (!Object.keys(row).length) invalid('Provide product fields.');
   return row;
 }
@@ -163,7 +165,7 @@ export function reports({ orders, products, profiles, collections }, months = 6,
     if (!Number.isSafeInteger(total)) throw new ApiError(503, 'REPORT_UNAVAILABLE', 'Report amount exceeds supported precision.');
     return total;
   };
-  const active = orders.filter((order) => order.status !== 'Cancelled');
+  const active = orders.filter((order) => order.status !== 'Cancelled' && (!order.payment_state || order.payment_state === 'paid'));
   const sales = Array.from({ length: months }, (_, index) => {
     const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - months + 1 + index, 1));
     const matching = active.filter((order) => String(order.created_at).slice(0, 7) === date.toISOString().slice(0, 7));

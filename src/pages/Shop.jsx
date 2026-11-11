@@ -8,9 +8,11 @@ import Select from '../components/ui/Select';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import EmptyState from '../components/ui/EmptyState';
+import Pagination from '../components/ui/Pagination';
 import { getProducts, getCollections, JEWELRY_TYPES, MATERIALS, SORT_OPTIONS } from '../services/productService';
 import { stoneTheme, STONE_ORDER } from '../utils/stoneTheme';
 import { formatPriceShort } from '../utils/formatPrice';
+import { SHOP_PAGE_SIZE } from '../config/store';
 import './Shop.css';
 
 const list = (value, allowed) =>
@@ -57,6 +59,16 @@ export default function Shop() {
   const loading = results.key !== queryString;
   const error = !loading && results.error;
   const products = results.items;
+  // Numbered pages of SHOP_PAGE_SIZE; any filter/search change goes back to page 1.
+  const [pageState, setPageState] = useState({ key: queryString, page: 1 });
+  const pageCount = Math.max(1, Math.ceil(products.length / SHOP_PAGE_SIZE));
+  const page = pageState.key === queryString ? Math.min(pageState.page, pageCount) : 1;
+  const pageStart = (page - 1) * SHOP_PAGE_SIZE;
+  const visibleProducts = products.slice(pageStart, pageStart + SHOP_PAGE_SIZE);
+  function goToPage(next) {
+    setPageState({ key: queryString, page: Math.max(1, Math.min(pageCount, next)) });
+    document.getElementById('results-count')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
   const [collections, setCollections] = useState([]);
   const [collectionError, setCollectionError] = useState(null);
   const [searchText, setSearchText] = useState(filters.q);
@@ -248,9 +260,9 @@ export default function Shop() {
           )}
 
           <ProductGrid
-            products={products}
+            products={visibleProducts}
             loading={loading}
-            skeletonCount={8}
+            skeletonCount={SHOP_PAGE_SIZE}
             empty={
               error ? (
                 <EmptyState icon={SearchX} title="Unable to load pieces" message={error.message}>
@@ -270,6 +282,15 @@ export default function Shop() {
               )
             }
           />
+
+          {!loading && !error && products.length > SHOP_PAGE_SIZE && (
+            <div className="shop-more">
+              <Pagination page={page} pageCount={pageCount} onChange={goToPage} label="Shop pages" />
+              <p className="shop-more__count" aria-live="polite">
+                Showing {pageStart + 1}–{pageStart + visibleProducts.length} of {products.length} pieces
+              </p>
+            </div>
+          )}
         </section>
       </div>
 

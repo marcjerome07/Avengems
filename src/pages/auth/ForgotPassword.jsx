@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { Mail, CircleAlert, CircleCheck, ArrowLeft } from 'lucide-react';
 import AuthShell, { FormAlert } from '../../components/auth/AuthShell';
 import OtpVerifier from '../../components/auth/OtpVerifier';
-import PasswordChecklist from '../../components/auth/PasswordChecklist';
+import PasswordChecklist, { PasswordMatch } from '../../components/auth/PasswordChecklist';
+import { checkPassword } from '../../utils/passwordRules';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import { requestPasswordReset, resetPassword } from '../../services/authService';
@@ -76,10 +77,13 @@ function ResetStep({ onDone, onRestart }) {
     setErrors((e) => ({ ...e, [name]: '' }));
   }
 
-  const confirmError = errors.confirm || (values.confirm && values.confirm !== values.password ? 'Passwords do not match.' : '');
+  const check = checkPassword(values.password, values.confirm);
+  const passwordError = errors.password || (check.tooLong ? 'Use at most 128 characters.' : '');
+  const formValid = check.valid && check.matches === true;
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (!formValid) return;
     const next = {
       password: values.password.length > 128 ? 'Use at most 128 characters.' : validatePassword(values.password),
       confirm: validatePasswordMatch(values.password, values.confirm),
@@ -113,7 +117,7 @@ function ResetStep({ onDone, onRestart }) {
           autoComplete="new-password"
           value={values.password}
           onChange={(e) => set('password', e.target.value)}
-          error={errors.password}
+          error={passwordError}
           aria-describedby="reset-rules"
         />
         <PasswordChecklist password={values.password} id="reset-rules" />
@@ -123,11 +127,19 @@ function ResetStep({ onDone, onRestart }) {
           autoComplete="new-password"
           value={values.confirm}
           onChange={(e) => set('confirm', e.target.value)}
-          error={confirmError}
+          error={values.confirm ? '' : errors.confirm}
+          aria-describedby={values.confirm ? 'reset-match' : undefined}
         />
-        <Button type="submit" size="lg" fullWidth loading={loading}>
+        <PasswordMatch password={values.password} confirm={values.confirm} id="reset-match" />
+        <Button type="submit" size="lg" fullWidth loading={loading} disabled={!formValid}
+          aria-describedby={formValid ? undefined : 'reset-submit-hint'}>
           Reset Password
         </Button>
+        {!formValid && (
+          <p className="auth-submit-hint" id="reset-submit-hint">
+            Meet all password requirements and confirm your password to continue.
+          </p>
+        )}
       </form>
     </AuthShell>
   );

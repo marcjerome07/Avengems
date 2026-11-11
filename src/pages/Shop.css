@@ -199,3 +199,16 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+/* Numbered pagination under the shop grid */
+.shop-more {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  margin-top: clamp(32px, 5vw, 56px);
+}
+
+.shop-more__count {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}

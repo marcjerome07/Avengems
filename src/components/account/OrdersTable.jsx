@@ -1,11 +1,18 @@
 import { Link } from 'react-router-dom';
 import OrderReference from './OrderReference';
+import CancelOrderAction from './CancelOrderAction';
+import { getCancellationReasons, cancellationReasonText } from '../../services/cancellationReasons';
+import { PaymentStatus } from './PaymentStatus';
 import { orderReference } from '../../utils/orderReference';
 import { StatusBadge } from '../ui/Badge';
 import { formatDate, formatPrice } from '../../utils/formatPrice';
 
-/** Customer order list. Becomes stacked cards on small screens. */
-export default function OrdersTable({ orders }) {
+/**
+ * Customer order list. Becomes stacked cards on small screens.
+ * Pass ownerId (and onCancelled) to show a "Cancel order" button under each order.
+ */
+export default function OrdersTable({ orders, ownerId, onCancelled, onRefresh }) {
+  const savedReasons = getCancellationReasons(ownerId);
   return (
     <div className="table-wrap">
       <table className="rtable">
@@ -40,11 +47,18 @@ export default function OrdersTable({ orders }) {
                 </td>
                 <td data-label="Status">
                   <StatusBadge status={o.status} />
+                  <div>Payment: <PaymentStatus order={o} /></div>
+                  {o.status === 'Cancelled' && cancellationReasonText(o, savedReasons) && (
+                    <div className="order-row-reason">Reason: {cancellationReasonText(o, savedReasons)}</div>
+                  )}
                 </td>
                 <td data-label="" className="num">
-                  <Link to={`/account/orders/${encodeURIComponent(o.id)}`} className="text-link" aria-label={`View order ${orderReference(o)}`}>
-                    View Order
-                  </Link>
+                  <div className="order-row-actions">
+                    <Link to={`/account/orders/${encodeURIComponent(o.id)}`} className="text-link" aria-label={`View order ${orderReference(o)}`}>
+                      View Order
+                    </Link>
+                    {ownerId && <CancelOrderAction order={o} ownerId={ownerId} onCancelled={onCancelled} onRefresh={onRefresh} />}
+                  </div>
                 </td>
               </tr>
             );

@@ -323,7 +323,7 @@ function buildItem(productId, quantity, opts = {}) {
   const p = productById[productId];
   const color = opts.color ?? p.color;
   const size = opts.size ?? p.defaultSize;
-  const customized = (p.customizable.color && color !== p.color) || (p.customizable.size && size !== p.defaultSize);
+  const customized = p.customizable.size && size !== p.defaultSize;
   const customizationFee = customized ? p.customizationFee : 0;
   return {
     lineId: `${p.id}|${color}|${size}`,

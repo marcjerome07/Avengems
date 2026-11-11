@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Search, PackageX } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, PackageX, ImageOff } from 'lucide-react';
 import AdminHeader from '../../components/admin/AdminHeader';
 import AdminDataState from '../../components/admin/AdminDataState';
 import Button from '../../components/ui/Button';
@@ -11,6 +11,8 @@ import Badge from '../../components/ui/Badge';
 import EmptyState from '../../components/ui/EmptyState';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import ProductMedia from '../../components/product/ProductMedia';
+import ProductImagesField from '../../components/admin/ProductImagesField';
+import useProductImages from '../../hooks/useProductImages';
 import { useConfirm } from '../../context/useConfirm';
 import { useToast } from '../../context/useToast';
 import useServiceData from '../../hooks/useServiceData';
@@ -39,10 +41,10 @@ const BLANK = {
   stock: '',
   shortDescription: '',
   customSize: false,
-  customColor: false,
   customizationFee: '150',
   isFeatured: false,
   archived: false,
+  imageSources: [],
 };
 
 function toForm(p) {
@@ -52,8 +54,8 @@ function toForm(p) {
     price: String(p.price),
     stock: String(p.stock),
     customSize: p.customizable.size,
-    customColor: p.customizable.color,
     customizationFee: String(p.customizationFee ?? 150),
+    imageSources: p.imageSources ?? [],
   };
 }
 
@@ -61,14 +63,17 @@ function ProductForm({ initial, collections, onCancel, onSave, saving }) {
   const gemstoneFor = (stone) => collections.find((c) => c.stone === stone)?.gemstone ?? '';
   const [v, setV] = useState(initial);
   const [errors, setErrors] = useState({});
+  const images = useProductImages(initial.imageSources, initial.id);
   const set = (name, value) => {
     setV((x) => ({ ...x, [name]: value }));
     if (errors[name]) setErrors((e) => ({ ...e, [name]: '' }));
   };
-  const customizable = v.customSize || v.customColor;
+  // Size is the only customization; each product's stone color is fixed.
+  const customizable = v.customSize;
 
   function handleSubmit(e) {
     e.preventDefault();
+    if (images.uploading) return;
     const result = runValidators(v, {
       name: (x) => validateRequired(x, 'Product name'),
       price: (x) => (Number(x) >= 1 ? '' : 'Enter a price of at least ₱1.'),
@@ -78,7 +83,8 @@ function ProductForm({ initial, collections, onCancel, onSave, saving }) {
     });
     setErrors(result);
     if (Object.keys(result).length) return;
-    onSave({
+    const imageSources = images.sources;
+    const payload = {
       name: v.name.trim(),
       type: v.type,
       stone: v.stone,
@@ -87,12 +93,15 @@ function ProductForm({ initial, collections, onCancel, onSave, saving }) {
       stock: Number(v.stock),
       shortDescription: v.shortDescription.trim(),
       details: v.details && v.id ? v.details : v.shortDescription.trim(),
-      customizable: { size: v.customSize, color: v.customColor },
+      // The API still expects both flags; stone-color customization is retired, so always false.
+      customizable: { size: v.customSize, color: false },
       customizationFee: customizable ? Number(v.customizationFee) : 0,
       isFeatured: v.isFeatured,
       archived: v.archived,
       ...(v.id && v.type === initial.type ? { sizes: v.sizes, defaultSize: v.defaultSize } : getSizePreset(v.type)),
-    });
+      images: imageSources,
+    };
+    onSave(payload, { onSaved: () => images.commit(imageSources) });
   }
 
   return (
@@ -108,6 +117,8 @@ function ProductForm({ initial, collections, onCancel, onSave, saving }) {
         label="Stone"
         value={v.stone}
         onChange={(e) => set('stone', e.target.value)}
+        disabled={Boolean(v.id)}
+        hint={v.id ? 'Each product belongs to one stone, so its color is fixed.' : 'Sets the product’s fixed stone color.'}
         options={STONE_ORDER.map((s) => ({ value: s, label: `${stoneTheme(s).color} · ${gemstoneFor(s)}` }))}
       />
       <Select
@@ -143,7 +154,7 @@ function ProductForm({ initial, collections, onCancel, onSave, saving }) {
         onChange={(e) => set('customizationFee', e.target.value)}
         error={errors.customizationFee}
         disabled={!customizable}
-        hint="₱100–₱300, applies when size or color differs from default"
+        hint="₱100–₱300, applies when size differs from default"
       />
       <div className="field span-2">
         <label className="field__label" htmlFor="pf-desc">
@@ -163,13 +174,11 @@ function ProductForm({ initial, collections, onCancel, onSave, saving }) {
           </p>
         )}
       </div>
+      <ProductImagesField images={images} productName={v.name.trim() || 'this product'} />
       <fieldset className="span-2" style={{ border: 0, padding: 0, margin: 0, display: 'flex', flexWrap: 'wrap', gap: '0 24px' }}>
         <legend className="field__label">Options</legend>
         <label className="checkbox">
           <input type="checkbox" checked={v.customSize} onChange={(e) => set('customSize', e.target.checked)} /> Size customization
-        </label>
-        <label className="checkbox">
-          <input type="checkbox" checked={v.customColor} onChange={(e) => set('customColor', e.target.checked)} /> Stone-color customization
         </label>
         <label className="checkbox">
           <input type="checkbox" checked={v.isFeatured} onChange={(e) => set('isFeatured', e.target.checked)} /> Featured on home page
@@ -180,7 +189,8 @@ function ProductForm({ initial, collections, onCancel, onSave, saving }) {
         <Button variant="ghost" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" loading={saving}>
+        {images.uploading && <span className="pimg__status" role="status">Waiting for uploads…</span>}
+        <Button type="submit" loading={saving} disabled={images.uploading}>
           {v.id ? 'Save changes' : 'Add product'}
         </Button>
       </div>
@@ -210,19 +220,20 @@ export default function Products() {
     );
   }, [data, query, type, stone]);
 
-  async function handleSave(payload) {
+  async function handleSave(payload, { onSaved } = {}) {
     setBusy(true);
     try {
       if (editing.id) {
         await updateProduct(editing.id, productUpdatePayload(editing, payload));
       }
       else await createProduct(payload);
+      onSaved?.();
       showToast(editing.id ? 'Product updated.' : 'Product added to the catalog.', { type: 'success' });
       setEditing(null);
       reload();
     } catch (err) {
       showToast(err.message, { type: 'error' });
-      if (err.code === 'INVENTORY_CONFLICT') { setEditing(null); reload(); }
+      if (['INVENTORY_CONFLICT', 'IMAGES_CONFLICT'].includes(err.code)) { setEditing(null); reload(); }
     } finally {
       setBusy(false);
     }
@@ -315,7 +326,13 @@ export default function Products() {
                   <td data-label="Product">
                     <span className="cell-product">
                       <span className="cell-product__thumb">
-                        <ProductMedia product={p} />
+                        {p.images?.length ? (
+                          <ProductMedia product={p} />
+                        ) : (
+                          <span className="cell-product__placeholder" role="img" aria-label="No image">
+                            <ImageOff size={16} strokeWidth={1.4} aria-hidden="true" />
+                          </span>
+                        )}
                       </span>
                       <span>
                         <Link to={`/product/${p.slug}`} className="cell-product__name">
@@ -344,7 +361,7 @@ export default function Products() {
                     <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                       {p.isFeatured && <Badge variant="bronze">Featured</Badge>}
                       {p.archived && <Badge variant="neutral">Archived</Badge>}
-                      {(p.customizable.size || p.customizable.color) && <Badge variant="neutral">Custom</Badge>}
+                      {p.customizable.size && <Badge variant="neutral">Custom size</Badge>}
                     </span>
                   </td>
                   <td data-label="Actions" className="num">

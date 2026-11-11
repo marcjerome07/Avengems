@@ -11,6 +11,7 @@ import CollectionCard from '../components/product/CollectionCard';
 import ProductGrid from '../components/product/ProductGrid';
 import { useToast } from '../context/useToast';
 import { getCollections, getFeaturedProducts, getPackages } from '../services/productService';
+import { FEATURED_PRODUCTS_LIMIT } from '../config/store';
 import { formatPriceShort } from '../utils/formatPrice';
 import { validateEmail } from '../utils/validators';
 import { DIAMOND_STYLES } from '../utils/stoneTheme';
@@ -88,7 +89,7 @@ function FeaturedCollections() {
 }
 
 function FeaturedProducts() {
-  const { data: products, loading, error, reload } = useServiceData(() => getFeaturedProducts(8));
+  const { data: products, loading, error, reload } = useServiceData(() => getFeaturedProducts(FEATURED_PRODUCTS_LIMIT));
 
   return (
     <section className="section container" aria-labelledby="featured-title">

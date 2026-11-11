@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import GemVisual from './GemVisual';
-import { withLocalImages } from '../../data/products';
+import { productImageAt } from '../../utils/productImages';
 
 /**
  * Shows the product photo when `images` has entries, otherwise the GemVisual placeholder.
@@ -9,7 +9,7 @@ import { withLocalImages } from '../../data/products';
 export default function ProductMedia({ product, stone, variant = 0, imageIndex = 0, className = '' }) {
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const src = withLocalImages(product).images?.[imageIndex];
+  const src = productImageAt(product, imageIndex);
   const visualStone = stone ?? product.stone;
 
   if (src && !failed && visualStone === product.stone) {

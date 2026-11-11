@@ -11,7 +11,7 @@ export const specifications = [
   ['Gemstone Size', 'Approx. 6–10 mm'],
   ['Packaging', 'Branded jewelry box and pouch'],
   ['Product Weight', 'Approx. 2–10 g depending on type'],
-  ['Customization', 'Selected pieces may offer size or stone-color options'],
+  ['Customization', 'Selected pieces offer size options; each stone has a fixed color'],
 ];
 
 export const materialNotes = {

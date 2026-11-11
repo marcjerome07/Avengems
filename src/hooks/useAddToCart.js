@@ -4,7 +4,7 @@ import { useCart } from '../context/useCart';
 import { useConfirm } from '../context/useConfirm';
 
 /**
- * addToCart(product, { color, size, quantity, silent }, { title, confirmLabel })
+ * addToCart(product, { size, quantity, silent }, { title, confirmLabel })
  * Shows what is being added and asks first. Resolves to true only when the item was added.
  */
 export default function useAddToCart() {

@@ -43,7 +43,7 @@ function make(p) {
     gemstone: stone.gemstone,
     sizes: sizes.options,
     defaultSize: sizes.default,
-    customizationFee: p.customizable.size || p.customizable.color ? p.customizationFee : 0,
+    customizationFee: p.customizable.size ? p.customizationFee : 0,
     details: `${p.shortDescription} ${TYPE_DETAILS[p.type]}`,
     images: [],
     ...p,
@@ -402,7 +402,7 @@ export const products = [
     customizable: { size: false, color: true },
     customizationFee: 200,
     addedAt: '2026-09-28',
-    images: ['/images/time-stone-earrings.jpg'],
+    images: [], // no green earrings photo yet; upload one from Admin → Products
     shortDescription: 'Peridot drops framed in sterling silver for a timeless, polished look.',
   }),
 

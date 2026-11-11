@@ -436,3 +436,64 @@
     padding: var(--space-5);
   }
 }
+
+/* ---------- Password strength, match message, submit hint ---------- */
+.pw-feedback {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.pw-strength {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--fs-xs);
+  color: var(--text-subtle);
+}
+
+.pw-strength__bars {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.pw-strength__bars span {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+  transition: background var(--transition);
+}
+
+.pw-strength.is-weak .is-on { background: var(--error); }
+.pw-strength.is-fair .is-on { background: var(--warning); }
+.pw-strength.is-strong .is-on { background: var(--success); }
+
+.pw-strength__label {
+  min-width: 112px;
+  text-align: right;
+  font-weight: 500;
+}
+
+.pw-strength.is-weak .pw-strength__label { color: var(--error); }
+.pw-strength.is-fair .pw-strength__label { color: #8a6526; }
+.pw-strength.is-strong .pw-strength__label { color: var(--success); }
+
+.pw-match {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: calc(var(--space-2) * -1);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+}
+
+.pw-match.is-ok { color: var(--success); }
+.pw-match.is-bad { color: var(--error); }
+
+.auth-submit-hint {
+  margin-top: calc(var(--space-2) * -1);
+  font-size: var(--fs-xs);
+  color: var(--text-subtle);
+  text-align: center;
+}

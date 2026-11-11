@@ -105,6 +105,18 @@
   background: #963c3c;
 }
 
+/* Secondary destructive: red outline, for actions that shouldn't dominate the page */
+.btn--danger-outline {
+  background: transparent;
+  color: var(--error);
+  border-color: rgba(176, 74, 74, 0.55);
+}
+
+.btn--danger-outline:hover {
+  background: var(--error-bg);
+  border-color: var(--error);
+}
+
 .btn__icon {
   flex-shrink: 0;
 }

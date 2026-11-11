@@ -14,6 +14,7 @@ const service = await vite.ssrLoadModule('/src/services/orderService.js');
 const { authSession } = await vite.ssrLoadModule('/src/services/authSession.js');
 const { default: CancelAction } = await vite.ssrLoadModule('/src/components/account/CancelOrderAction.jsx');
 const { ConfirmContext } = await vite.ssrLoadModule('/src/context/useConfirm.js');
+const { ToastContext } = await vite.ssrLoadModule('/src/context/useToast.js');
 const { default: OrdersTable } = await vite.ssrLoadModule('/src/components/account/OrdersTable.jsx');
 const { default: Reference } = await vite.ssrLoadModule('/src/components/account/OrderReference.jsx');
 const { orderReference } = await vite.ssrLoadModule('/src/utils/orderReference.js');
@@ -61,13 +62,22 @@ test('customer cancellation fails visibly for disabled/conflict/network and malf
   await assert.rejects(service.cancelCustomerOrder(order.id, 'other-owner'), { code: 'SESSION_CHANGED' });
 });
 
-test('customer cancellation action is enabled only for approved Pending/Processing orders', () => {
-  const render = (value) => renderToString(h(MemoryRouter, null, h(ConfirmContext.Provider, { value: async () => true }, h(CancelAction, { order: value, ownerId: user.id, onCancelled() {} }))));
-  for (const status of ['Pending', 'Processing']) {
-    const html = render({ ...order, status }); assert.match(html, /Cancel Order/); assert.doesNotMatch(html, /disabled=""/);
-    const disabled = render({ ...order, status, canCancel: false }); assert.match(disabled, /disabled=""/); assert.match(disabled, /unavailable/);
+test('customer cancellation is clickable only while Pending and grayed out afterwards', () => {
+  const render = (value) => renderToString(h(MemoryRouter, null, h(ToastContext.Provider, { value: { showToast() {} } },
+    h(ConfirmContext.Provider, { value: async () => true }, h(CancelAction, { order: value, ownerId: user.id, onCancelled() {} })))));
+  const pending = render({ ...order, status: 'Pending' }); assert.match(pending, /Cancel order/); assert.doesNotMatch(pending, /disabled=""/);
+  // The list has no canCancel flag: status alone decides there.
+  const listPending = render({ ...order, status: 'Pending', canCancel: undefined }); assert.doesNotMatch(listPending, /disabled=""/);
+  // Shopee-style: Pending is always clickable; the server has the final say.
+  for (const value of [{ ...order, canCancel: false }, { ...order, payment: { status: 'paid' } }]) {
+    assert.doesNotMatch(render(value), /disabled=""/);
   }
-  for (const status of ['Shipped', 'Delivered', 'Cancelled']) assert.equal(render({ ...order, status }), '');
+  // Every later status: shown but grayed out.
+  for (const value of ['Processing', 'Shipped', 'Delivered'].map((status) => ({ ...order, status }))) {
+    const html = render(value); assert.match(html, /Cancel order/); assert.match(html, /disabled=""/);
+  }
+  assert.match(render({ ...order, status: 'Shipped' }), /Only pending orders can be cancelled/);
+  assert.equal(render({ ...order, status: 'Cancelled' }), '');
 });
 
 test('short references display while order links retain internal IDs; legacy and missing values wrap safely', () => {
