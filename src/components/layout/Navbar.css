@@ -1,10 +1,72 @@
 .announcement {
   background: var(--linen);
   color: var(--ink-soft);
-  text-align: center;
   font-size: var(--fs-sm);
   letter-spacing: 0.02em;
-  padding: 12px var(--gutter);
+  padding-block: 12px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* Two identical groups side by side; sliding left by one group's width loops seamlessly. */
+.announcement__track {
+  display: flex;
+  width: max-content;
+  animation: announcement-scroll 40s linear infinite;
+}
+
+.announcement:hover .announcement__track,
+.announcement:focus-within .announcement__track {
+  animation-play-state: paused;
+}
+
+.announcement__group {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.announcement__item {
+  display: flex;
+  align-items: center;
+}
+
+.announcement__item::after {
+  content: '✦';
+  margin-inline: 2.5em;
+  opacity: 0.5;
+}
+
+@keyframes announcement-scroll {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* No scrolling for people who turn motion off: show the messages centred and wrapped. */
+@media (prefers-reduced-motion: reduce) {
+  .announcement {
+    white-space: normal;
+    padding-inline: var(--gutter);
+  }
+
+  .announcement__track {
+    width: auto;
+    animation: none;
+    justify-content: center;
+  }
+
+  .announcement__group {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 4px;
+  }
+
+  .announcement__group[aria-hidden='true'],
+  .announcement__item:last-child::after {
+    display: none;
+  }
 }
 
 .navbar {
