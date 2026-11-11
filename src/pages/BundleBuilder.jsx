@@ -104,6 +104,7 @@ export default function BundleBuilder() {
       items: products.filter((p) => p.stone === stone) }))
     : [{ key: 'all', title: null, items: products }];
   const pickedStones = new Set(chosen.map(({ product }) => product.stone));
+  const actionLabel = complete ? 'Add bundle to cart' : `Pick ${pkg ? pkg.pieces - chosen.length : ''} more`;
 
   return (
     <PageContainer title={pkg?.name ?? 'Build your bundle'}>
@@ -150,9 +151,20 @@ export default function BundleBuilder() {
             <p className="bundle-summary__total"><span>Total</span><strong>{formatPrice(total)}</strong></p>
             <p className="muted bundle-summary__note">{pkg.includes}. Shipping is added at checkout.</p>
             <Button size="lg" fullWidth icon={ShoppingBag} disabled={!complete} onClick={addBundle}>
-              {complete ? 'Add bundle to cart' : `Pick ${pkg.pieces - chosen.length} more`}
+              {actionLabel}
             </Button>
           </aside>
+
+          {/* Phones/tablets: keep progress, total and the button in reach while scrolling the pieces. */}
+          <div className="bundle-bar">
+            <p className="bundle-bar__status">
+              <span>{chosen.length} of {pkg.pieces} selected</span>
+              <strong>{formatPrice(total)}</strong>
+            </p>
+            <Button icon={ShoppingBag} disabled={!complete} onClick={addBundle}>
+              {complete ? 'Add to cart' : actionLabel}
+            </Button>
+          </div>
         </div>
       )}
     </PageContainer>
