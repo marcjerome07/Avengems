@@ -52,7 +52,7 @@ export function createOrdersRouter(client, { customerCancellationEnabled = false
   router.post('/:id/cancel', async (req, res) => {
     only(req.body, []);
     if (!/^[A-Za-z0-9-]{1,100}$/.test(req.params.id)) invalid('Invalid order identifier.');
-    if (!await ready()) throw new ApiError(503, 'CUSTOMER_CANCELLATION_DISABLED', 'Customer cancellation is awaiting validated database deployment.');
+    if (!await ready()) throw new ApiError(503, 'CUSTOMER_CANCELLATION_DISABLED', "Online cancellation isn't available right now.");
     const row = await database(() => client.from('orders').select('id,status,checkout_key,checkout_request')
       .eq('user_id', req.auth.userId).eq('id', req.params.id).maybeSingle());
     if (!row) throw new ApiError(404, 'NOT_FOUND', 'Order not found.');

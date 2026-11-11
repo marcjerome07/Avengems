@@ -7,6 +7,7 @@ import { useToast } from '../../context/useToast';
 import { cancelCustomerOrder } from '../../services/orderService';
 import { orderReference } from '../../utils/orderReference';
 import { saveCancellationReason } from '../../services/cancellationReasons';
+import { config } from '../../data/config';
 
 const REASONS = [
   { value: '', label: 'Choose a reason (optional)' },
@@ -130,7 +131,18 @@ export default function CancelOrderAction({ order, ownerId, onCancelled, onRefre
               />
             </div>
           )}
-          {error && (
+          {error?.code === 'CUSTOMER_CANCELLATION_DISABLED' ? (
+            // Switched off on the server: refreshing won't help, so point to the store instead.
+            <div className="cancel-dialog__error" role="alert">
+              <p>
+                Online cancellation isn’t available right now. To cancel this order, email us at{' '}
+                <a href={`mailto:${config.contactEmail}?subject=${encodeURIComponent(`Cancel order ${orderReference(order)}`)}`}>
+                  {config.contactEmail}
+                </a>{' '}
+                with your order number.
+              </p>
+            </div>
+          ) : error && (
             <div className="cancel-dialog__error" role="alert">
               <p>{error.message} Check the latest order status before trying again.</p>
               {onRefresh && (
