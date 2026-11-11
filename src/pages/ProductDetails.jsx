@@ -13,6 +13,7 @@ import ProductMedia from '../components/product/ProductMedia';
 import ProductGrid from '../components/product/ProductGrid';
 import { useCart } from '../context/useCart';
 import useAddToCart from '../hooks/useAddToCart';
+import useLoginPrompt from '../hooks/useLoginPrompt';
 import { useWishlist } from '../context/useWishlist';
 import { getProductBySlug, getRelatedProducts, getProductInfo, CUSTOMIZATION_FEE_RANGE } from '../services/productService';
 import { formatPrice, formatPriceShort } from '../utils/formatPrice';
@@ -26,6 +27,7 @@ function ProductView({ product }) {
   const navigate = useNavigate();
   const { addItem } = useCart();
   const addToCart = useAddToCart();
+  const requireLogin = useLoginPrompt();
   const { isWishlisted, isPending, toggle, loading: wishlistLoading } = useWishlist();
   const [size, setSize] = useState(product.defaultSize);
   const [quantity, setQuantity] = useState(1);
@@ -57,7 +59,8 @@ function ProductView({ product }) {
     return addToCart(product, { size, quantity });
   }
 
-  function handleBuyNow() {
+  async function handleBuyNow() {
+    if (!(await requireLogin(`buy ${product.name}`))) return;
     if (addItem(product, { size, quantity, silent: true })) navigate('/checkout');
   }
 
