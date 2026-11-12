@@ -105,7 +105,7 @@ test('Google network errors are not replayed and unsafe navigation responses are
   }
 });
 
-test('Google callback errors are accessible, sanitized and retryable; login/signup both offer Google', async () => {
+test('Google callback errors are accessible and sanitized; login/signup no longer offer Google', async () => {
   for (const code of ['denied', 'expired', 'invalid', 'failed']) {
     const html = renderToString(h(MemoryRouter, { initialEntries: [`/login?oauth=${code}&error_description=ATTACKER_TEXT`] },
       h(GoogleLoginButton)));
@@ -115,9 +115,9 @@ test('Google callback errors are accessible, sanitized and retryable; login/sign
   }
   const state = createAuthSession({ getCurrentUser: async () => null });
   await state.restore();
-  assert.match(render(state, Login), /Continue with Google/);
-  assert.match(render(state, Signup), /Continue with Google/);
-  assert.match(render(state, Signup), /Remember me for Google sign-in/);
+  // Google sign-in is switched off: neither page shows the button or its Remember Me option.
+  assert.doesNotMatch(render(state, Login), /Continue with Google/);
+  assert.doesNotMatch(render(state, Signup), /Continue with Google|Remember me for Google sign-in/);
 });
 
 test('session restoration ignores forged browser storage and uses only server identity', async (t) => {

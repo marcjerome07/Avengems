@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Mail, CircleAlert, MailWarning } from 'lucide-react';
 import AuthShell, { FormAlert } from '../../components/auth/AuthShell';
-import GoogleLoginButton from '../../components/auth/GoogleLoginButton';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import { useAuth } from '../../context/useAuth';
@@ -27,7 +26,6 @@ export default function Login() {
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
 
   if (initializing || signingOut) {
     return <AuthShell title="Welcome Back" docTitle="Log in"><p role="status">Checking your session…</p></AuthShell>;
@@ -44,7 +42,6 @@ export default function Login() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (googleLoading) return;
     const result = runValidators(values, {
       email: validateEmail,
       password: (v) => validateRequired(v, 'Password'),
@@ -116,18 +113,15 @@ export default function Login() {
         />
         <div className="auth-row">
           <label className="checkbox">
-            <input type="checkbox" checked={values.remember} disabled={googleLoading} onChange={(e) => set('remember', e.target.checked)} />
+            <input type="checkbox" checked={values.remember} onChange={(e) => set('remember', e.target.checked)} />
             Remember me
           </label>
           <Link to="/forgot-password">Forgot Password?</Link>
         </div>
-        <Button type="submit" size="lg" fullWidth loading={loading} disabled={googleLoading}>
+        <Button type="submit" size="lg" fullWidth loading={loading}>
           {loading ? 'Logging in…' : 'Log In'}
         </Button>
       </form>
-
-      <div className="auth-divider">or</div>
-      <GoogleLoginButton remember={values.remember} disabled={loading || signingOut || logoutFailed} onPendingChange={setGoogleLoading} />
     </AuthShell>
   );
 }

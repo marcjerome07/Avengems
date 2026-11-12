@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Mail, User, CircleAlert } from 'lucide-react';
 import AuthShell, { FormAlert } from '../../components/auth/AuthShell';
 import PasswordChecklist, { PasswordMatch } from '../../components/auth/PasswordChecklist';
-import GoogleLoginButton from '../../components/auth/GoogleLoginButton';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import { useToast } from '../../context/useToast';
@@ -18,8 +17,6 @@ export default function SignUp() {
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [remember, setRemember] = useState(true);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [touched, setTouched] = useState({});
 
@@ -49,7 +46,6 @@ export default function SignUp() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (googleLoading) return;
     setTouched({ name: true, email: true });
     const result = runValidators(values, {
       name: nameRule,
@@ -129,7 +125,7 @@ export default function SignUp() {
           aria-describedby={values.confirm ? 'pw-match' : undefined}
         />
         <PasswordMatch password={values.password} confirm={values.confirm} id="pw-match" />
-        <Button type="submit" size="lg" fullWidth loading={loading} disabled={googleLoading || !formValid}
+        <Button type="submit" size="lg" fullWidth loading={loading} disabled={!formValid}
           aria-describedby={formValid ? undefined : 'signup-submit-hint'}>
           {loading ? 'Creating account…' : 'Create Account'}
         </Button>
@@ -142,12 +138,6 @@ export default function SignUp() {
           Check your email to complete confirmation before signing in.
         </p>
       </form>
-      <div className="auth-divider">or</div>
-      <label className="checkbox">
-        <input type="checkbox" checked={remember} disabled={googleLoading} onChange={(event) => setRemember(event.target.checked)} />
-        Remember me for Google sign-in
-      </label>
-      <GoogleLoginButton remember={remember} disabled={loading} onPendingChange={setGoogleLoading} />
     </AuthShell>
   );
 }
