@@ -1,5 +1,11 @@
 import { STONE_ORDER } from './stoneTheme';
 
+/** Cheapest and dearest in-stock piece, for packages priced per piece (liveRange). Null if nothing is in stock. */
+export function catalogPriceRange(products = []) {
+  const prices = products.filter((p) => p.stock > 0).map((p) => p.price);
+  return prices.length ? { min: Math.min(...prices), max: Math.max(...prices) } : null;
+}
+
 /**
  * Lowest possible total for a buildable package, using in-stock pieces at their default size.
  * 'any': the cheapest `pieces` products; 'one-per-stone': the cheapest piece of each stone.

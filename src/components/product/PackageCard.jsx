@@ -3,9 +3,14 @@ import Button from '../ui/Button';
 import { formatPrice, formatPriceRange } from '../../utils/formatPrice';
 import './PackageCard.css';
 
-/** fromPrice: lowest bundle total from the live catalog (see utils/bundles), when known. */
-export default function PackageCard({ pkg, fromPrice = null }) {
-  const price = fromPrice != null ? `From ${formatPrice(fromPrice)}` : pkg.priceLabel ?? formatPriceRange(pkg.priceMin, pkg.priceMax);
+/**
+ * fromPrice: lowest bundle total from the live catalog; range: live { min, max } for per-piece packages
+ * (see utils/bundles). Without them the card falls back to the package's static price text.
+ */
+export default function PackageCard({ pkg, fromPrice = null, range = null }) {
+  const price = fromPrice != null ? `From ${formatPrice(fromPrice)}`
+    : range ? formatPriceRange(range.min, range.max)
+      : pkg.priceLabel ?? formatPriceRange(pkg.priceMin, pkg.priceMax);
   return (
     <article className={`package-card ${pkg.signature ? 'package-card--signature' : ''}`}>
       {pkg.signature && (

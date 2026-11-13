@@ -8,6 +8,7 @@ import { useConfirm } from '../../context/useConfirm';
 import { useToast } from '../../context/useToast';
 import { LOGOUT_CONFIRM } from '../../utils/confirmMessages';
 import { DIAMOND_STYLES } from '../../utils/stoneTheme';
+import { ANNOUNCEMENTS } from '../../data/announcements';
 import './MobileMenu.css';
 
 export default function MobileMenu({ open, onClose }) {
@@ -103,7 +104,11 @@ export default function MobileMenu({ open, onClose }) {
               <span key={i} style={style} />
             ))}
           </span>
-          <p>A little color. A little meaning. A piece of you.</p>
+          <ul className="mobile-menu__news" role="list" aria-label="Store announcements">
+            {ANNOUNCEMENTS.map((message) => (
+              <li key={message}>{message}</li>
+            ))}
+          </ul>
         </div>
       </div>
     </Modal>

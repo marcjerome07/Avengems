@@ -1,10 +1,4 @@
-// Edit this list to change what scrolls across the top of the store.
-const MESSAGES = [
-  '12.12 Sale on December 12. Mark your calendar!',
-  'Free shipping on orders over ₱2,000',
-  'A little color. A little meaning. A piece of you.',
-  'Pay with GCash, Card or Cash on Delivery',
-];
+import { ANNOUNCEMENTS as MESSAGES } from '../../data/announcements';
 
 function Group({ hidden = false }) {
   return (

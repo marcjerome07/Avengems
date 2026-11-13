@@ -4,7 +4,7 @@ import CollectionCard from '../components/product/CollectionCard';
 import PackageCard from '../components/product/PackageCard';
 import Skeleton from '../components/ui/Skeleton';
 import { getCollections, getPackages, getProducts } from '../services/productService';
-import { bundleFromPrice } from '../utils/bundles';
+import { bundleFromPrice, catalogPriceRange } from '../utils/bundles';
 import { DIAMOND_STYLES } from '../utils/stoneTheme';
 import './Collections.css';
 
@@ -50,7 +50,10 @@ export default function Collections() {
         </div>
         <div className="package-grid">
           {packages
-            ? packages.map((p) => <PackageCard key={p.id} pkg={p} fromPrice={catalog ? bundleFromPrice(p, catalog.items) : null} />)
+            ? packages.map((p) => (
+              <PackageCard key={p.id} pkg={p} fromPrice={catalog ? bundleFromPrice(p, catalog.items) : null}
+                range={catalog && p.liveRange ? catalogPriceRange(catalog.items) : null} />
+            ))
             : Array.from({ length: 5 }, (_, i) => <Skeleton key={i} height={320} />)}
         </div>
         <p className="packages-section__note">

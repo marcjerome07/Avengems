@@ -9,8 +9,10 @@ export const packages = [
     id: 'pkg-single',
     name: 'Single Piece',
     includes: '1 Avengems jewelry piece + branded pouch',
+    // Fallback when the catalog can't load; otherwise the live in-stock range is shown (liveRange).
     priceMin: 299,
     priceMax: 799,
+    liveRange: true,
     pieces: 1,
     signature: false,
     shopLink: '/shop',

@@ -77,3 +77,17 @@
   font-size: var(--fs-xs);
   color: var(--text-subtle);
 }
+
+.mobile-menu__news {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mobile-menu__news li::before {
+  content: '✦';
+  margin-right: 8px;
+  opacity: 0.5;
+}
