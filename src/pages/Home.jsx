@@ -6,7 +6,7 @@ import useServiceData from '../hooks/useServiceData';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Skeleton from '../components/ui/Skeleton';
-import HeroVisual from '../components/product/HeroVisual';
+import HeroSlideshow from '../components/product/HeroSlideshow';
 import CollectionCard from '../components/product/CollectionCard';
 import ProductGrid from '../components/product/ProductGrid';
 import { useToast } from '../context/useToast';
@@ -55,7 +55,7 @@ function Hero() {
           </span>
         </div>
         <div className="hero__media">
-          <HeroVisual />
+          <HeroSlideshow />
         </div>
       </div>
     </section>

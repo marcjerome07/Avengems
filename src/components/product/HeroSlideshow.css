@@ -1,0 +1,158 @@
+.hero-slides {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* Soft shading behind the caption (top) and controls (bottom) so white text stays readable */
+.hero-slides::before,
+.hero-slides::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  pointer-events: none;
+}
+
+.hero-slides::before {
+  top: 0;
+  height: 45%;
+  background: linear-gradient(to bottom, rgba(26, 24, 21, 0.6), rgba(26, 24, 21, 0));
+}
+
+.hero-slides::after {
+  bottom: 0;
+  height: 22%;
+  background: linear-gradient(to top, rgba(26, 24, 21, 0.55), rgba(26, 24, 21, 0));
+}
+
+/* Pendant gem fades in when the stone changes */
+.hero-visual__gem {
+  animation: hero-gem-in 0.6s ease both;
+}
+
+.hero-visual__loose {
+  transition: opacity 0.4s ease;
+}
+
+@keyframes hero-gem-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.hero-slides__caption {
+  position: absolute;
+  z-index: 1;
+  top: clamp(16px, 4vw, 32px);
+  left: clamp(16px, 4vw, 32px);
+  right: 30%;
+  display: grid;
+  gap: 4px;
+  color: #fff;
+  animation: hero-caption-in 0.5s ease both;
+}
+
+@keyframes hero-caption-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.hero-slides__gemstone {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #ebd488;
+}
+
+.hero-slides__name {
+  font-family: var(--font-serif);
+  font-size: clamp(1.5rem, 3vw, 2.125rem);
+  line-height: 1.1;
+}
+
+.hero-slides__tagline {
+  font-size: var(--fs-sm);
+  opacity: 0.85;
+}
+
+.hero-slides__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  margin-top: var(--space-2);
+  padding-bottom: 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.6);
+  color: #fff;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+
+.hero-slides__link:hover {
+  border-bottom-color: #fff;
+}
+
+.hero-slides__controls {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  bottom: clamp(12px, 3vw, 24px);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.hero-slides__dots {
+  display: flex;
+  gap: 10px;
+}
+
+.hero-slides__dot {
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+  opacity: 0.6;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.hero-slides__dot.is-active {
+  opacity: 1;
+  transform: scale(1.4);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85);
+}
+
+.hero-slides__arrow {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 50%;
+  background: rgba(26, 24, 21, 0.35);
+  color: #fff;
+  cursor: pointer;
+}
+
+.hero-slides__arrow:hover {
+  background: rgba(26, 24, 21, 0.6);
+}
+
+.hero-slides__dot:focus-visible,
+.hero-slides__arrow:focus-visible,
+.hero-slides__link:focus-visible {
+  outline: 2px solid var(--bronze-light);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-visual__gem,
+  .hero-slides__caption {
+    animation: none;
+  }
+}

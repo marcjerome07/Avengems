@@ -1,13 +1,14 @@
 import { useId } from 'react';
 import { Gem, GemDefs } from './GemVisual';
-import { STONE_ORDER } from '../../utils/stoneTheme';
+import { STONE_ORDER, stoneName } from '../../utils/stoneTheme';
 
 /**
  * Large still-life illustration for the home hero: a pendant on a fine chain
  * resting in a beam of light, with the six stones scattered below.
+ * `stone` sets the pendant's gem and highlights the matching loose stone (used by HeroSlideshow).
  * Replace with a real photo by swapping this component for an <img>.
  */
-export default function HeroVisual() {
+export default function HeroVisual({ stone = 'space' }) {
   const uid = `hv${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const scattered = [
     { x: 150, y: 560, r: 18 },
@@ -24,7 +25,7 @@ export default function HeroVisual() {
       viewBox="0 0 640 720"
       preserveAspectRatio="xMidYMid slice"
       role="img"
-      aria-label="A gemstone pendant on a fine chain resting in soft light, with six colored stones"
+      aria-label={`A ${stoneName(stone)} pendant on a fine chain resting in soft light, with six colored stones`}
     >
       <defs>
         <radialGradient id={`${uid}-bg`} cx="0.62" cy="0.38" r="0.85">
@@ -95,12 +96,17 @@ export default function HeroVisual() {
       {/* pendant */}
       <g>
         <polygon points="330,366 398,412 398,488 330,534 262,488 262,412" fill={`url(#${uid}-metal)`} />
-        <Gem stone="space" cut="octagon" cx={330} cy={450} r={74} uid={uid} />
+        {/* keyed by stone so a new stone fades in */}
+        <g key={stone} className="hero-visual__gem">
+          <Gem stone={stone} cut="octagon" cx={330} cy={450} r={74} uid={uid} />
+        </g>
       </g>
 
-      {/* six stones */}
+      {/* six stones; the pendant's stone is lit, the rest dimmed */}
       {scattered.map((s, i) => (
-        <Gem key={STONE_ORDER[i]} stone={STONE_ORDER[i]} cut="rhombus" cx={s.x} cy={s.y} r={s.r} uid={uid} sparkle={s.r > 17} />
+        <g key={STONE_ORDER[i]} className="hero-visual__loose" opacity={STONE_ORDER[i] === stone ? 1 : 0.4}>
+          <Gem stone={STONE_ORDER[i]} cut="rhombus" cx={s.x} cy={s.y} r={s.r} uid={uid} sparkle={STONE_ORDER[i] === stone || s.r > 17} />
+        </g>
       ))}
 
       {/* star specks */}
