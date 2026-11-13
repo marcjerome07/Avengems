@@ -1,0 +1,106 @@
+/* Payment box on the order confirmation and order details pages */
+.payment-box {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.payment-box__status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.payment-box__label {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.payment-box__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+
+.payment-box__badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.payment-box__badge--waiting {
+  background: #f2ebdf;
+  color: var(--bronze);
+}
+
+.payment-box__badge--paid {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.payment-box__badge--ended {
+  background: var(--error-bg);
+  color: var(--error);
+}
+
+.payment-box__badge--neutral {
+  background: var(--surface-soft);
+  color: var(--ink-soft);
+}
+
+.payment-box__help,
+.payment-box__note {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.payment-box__alert {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--error-bg);
+  color: var(--error);
+  font-size: var(--fs-sm);
+}
+
+.payment-box__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+}
+
+/* Cancel is the least important action: pushed to the right on wider screens */
+.payment-box__cancel {
+  margin-left: auto;
+}
+
+.payment-box__test {
+  padding-top: var(--space-3);
+  border-top: var(--border);
+  font-size: var(--fs-xs);
+  color: var(--text-subtle);
+}
+
+@media (max-width: 559px) {
+  .payment-box__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .payment-box__actions .btn {
+    width: 100%;
+  }
+
+  .payment-box__cancel {
+    margin-left: 0;
+  }
+}

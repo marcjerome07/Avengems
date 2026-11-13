@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import Button from '../ui/Button';
 import { getPayment, startPayment, checkPayment, cancelPayment, paymentLabel, paymentMethods } from '../../services/paymentService';
 import { config } from '../../data/config';
+import './PaymentStatus.css';
 
 // One plain-language line under the status, per payment state.
 const STATUS_HELP = {
@@ -64,16 +65,24 @@ export default function PaymentActions({ order, ownerId, onChanged }) {
   const status = payment?.status;
   const awaiting = ['created', 'pending'].includes(status);
   const settled = ['paid', 'expired', 'cancelled', 'refunded'].includes(status);
-  return <section className="panel" aria-label="Payment status">
-    <p role="status">Payment: {paymentLabel({ ...order, payment })}</p>
-    <p>{STATUS_HELP[status] ?? STATUS_HELP.pending}</p>
-    {payment?.lastAttemptStatus === 'FAILED' && status === 'pending' && <p>Your last attempt didn’t go through. You can try again on the same payment page.</p>}
-    {['creating', 'unknown', 'review'].includes(status) && <p>Please don’t pay again. If this doesn’t update soon, email us at{' '}
+  const tone = status === 'paid' ? 'paid' : ['failed', 'expired', 'cancelled'].includes(status) ? 'ended' : status === 'refunded' ? 'neutral' : 'waiting';
+  return <section className="panel payment-box" aria-label="Payment status">
+    <p role="status" className="payment-box__status">
+      <span className="payment-box__label">Payment:</span>{' '}
+      <span className={`payment-box__badge payment-box__badge--${tone}`}>{paymentLabel({ ...order, payment })}</span>
+    </p>
+    <p className="payment-box__help">{STATUS_HELP[status] ?? STATUS_HELP.pending}</p>
+    {payment?.lastAttemptStatus === 'FAILED' && status === 'pending' && <p className="payment-box__note">Your last attempt didn’t go through. You can try again on the same payment page.</p>}
+    {['creating', 'unknown', 'review'].includes(status) && <p className="payment-box__note">Please don’t pay again. If this doesn’t update soon, email us at{' '}
       <a href={`mailto:${config.contactEmail}`}>{config.contactEmail}</a> with your order number.</p>}
-    {error && <p role="alert">{error}</p>}
-    {awaiting && <Button loading={busy} disabled={!canStart} onClick={() => act(startPayment)}>Continue payment</Button>}
-    {!settled && <Button variant="outline" disabled={busy} onClick={() => act(checkPayment)}>Refresh payment status</Button>}
-    {awaiting && <Button variant="ghost" disabled={busy} onClick={() => act(cancelPayment)}>Cancel payment</Button>}
-    <p className="muted">Test mode: no real money is charged.</p>
+    {error && <p role="alert" className="payment-box__alert">{error}</p>}
+    {(awaiting || !settled) && (
+      <div className="payment-box__actions">
+        {awaiting && <Button loading={busy} disabled={!canStart} onClick={() => act(startPayment)}>Continue payment</Button>}
+        {!settled && <Button variant="outline" disabled={busy} onClick={() => act(checkPayment)}>Refresh payment status</Button>}
+        {awaiting && <Button variant="ghost" disabled={busy} onClick={() => act(cancelPayment)} className="payment-box__cancel">Cancel payment</Button>}
+      </div>
+    )}
+    <p className="payment-box__test">Test mode: no real money is charged.</p>
   </section>;
 }
