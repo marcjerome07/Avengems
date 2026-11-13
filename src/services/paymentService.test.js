@@ -48,5 +48,5 @@ test('return URLs cannot imply paid; independent payment labels and recoverable 
     if(['unknown','review','creating','paid','expired','cancelled','refunded'].includes(status))assert.doesNotMatch(html,/Continue to Xendit/);
   }
   assert.equal(service.paymentLabel({paymentMethod:'cod'}),'Due on delivery');
-  assert.equal(service.paymentLabel({paymentMethod:'gcash'}),'Unverified legacy payment');
+  assert.equal(service.paymentLabel({paymentMethod:'gcash'}),'Payment not verified');
 });

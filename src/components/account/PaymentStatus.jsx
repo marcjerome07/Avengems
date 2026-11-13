@@ -2,6 +2,21 @@ import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Button from '../ui/Button';
 import { getPayment, startPayment, checkPayment, cancelPayment, paymentLabel, paymentMethods } from '../../services/paymentService';
+import { config } from '../../data/config';
+
+// One plain-language line under the status, per payment state.
+const STATUS_HELP = {
+  created: 'Pay on Xendit’s secure page. This page updates by itself once your payment is confirmed.',
+  pending: 'Pay on Xendit’s secure page. This page updates by itself once your payment is confirmed.',
+  creating: 'We’re setting up your payment with Xendit.',
+  unknown: 'We’re confirming your payment with Xendit.',
+  review: 'Our team is checking this payment.',
+  paid: 'Thank you! Your payment was received.',
+  failed: 'This payment didn’t go through.',
+  expired: 'This payment expired before it was completed, so the order was cancelled. You can place a new order anytime.',
+  cancelled: 'This payment was cancelled, so the order was cancelled too.',
+  refunded: 'This payment was refunded.',
+};
 
 export function PaymentStatus({ order }) {
   return <span>{paymentLabel(order)}</span>;
@@ -47,14 +62,18 @@ export default function PaymentActions({ order, ownerId, onChanged }) {
   }
   if (!order.payment) return <p>Payment: <PaymentStatus order={order} /></p>;
   const status = payment?.status;
+  const awaiting = ['created', 'pending'].includes(status);
+  const settled = ['paid', 'expired', 'cancelled', 'refunded'].includes(status);
   return <section className="panel" aria-label="Payment status">
     <p role="status">Payment: {paymentLabel({ ...order, payment })}</p>
-    <p>Xendit Test Mode. Returning from checkout does not confirm payment.</p>
-    {payment?.lastAttemptStatus === 'FAILED' && status === 'pending' && <p>The last attempt failed. You can retry in the same hosted checkout.</p>}
-    {['creating','unknown','review'].includes(status) && <p>Keep this order. Do not create a replacement payment; contact support if verification remains pending.</p>}
+    <p>{STATUS_HELP[status] ?? STATUS_HELP.pending}</p>
+    {payment?.lastAttemptStatus === 'FAILED' && status === 'pending' && <p>Your last attempt didn’t go through. You can try again on the same payment page.</p>}
+    {['creating', 'unknown', 'review'].includes(status) && <p>Please don’t pay again. If this doesn’t update soon, email us at{' '}
+      <a href={`mailto:${config.contactEmail}`}>{config.contactEmail}</a> with your order number.</p>}
     {error && <p role="alert">{error}</p>}
-    {['created','pending'].includes(status) && <Button loading={busy} disabled={!canStart} onClick={() => act(startPayment)}>Continue to Xendit</Button>}
-    <Button variant="outline" disabled={busy} onClick={() => act(checkPayment)}>Check payment</Button>
-    {['created','pending'].includes(status) && <Button variant="ghost" disabled={busy} onClick={() => act(cancelPayment)}>Cancel test payment</Button>}
+    {awaiting && <Button loading={busy} disabled={!canStart} onClick={() => act(startPayment)}>Continue payment</Button>}
+    {!settled && <Button variant="outline" disabled={busy} onClick={() => act(checkPayment)}>Refresh payment status</Button>}
+    {awaiting && <Button variant="ghost" disabled={busy} onClick={() => act(cancelPayment)}>Cancel payment</Button>}
+    <p className="muted">Test mode: no real money is charged.</p>
   </section>;
 }

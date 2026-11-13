@@ -14,10 +14,11 @@ export async function startPayment(id, ownerId) {
   }
   return result;
 }
+// Customer-facing wording for each payment state.
 export const PAYMENT_STATES = {
-  created: 'Awaiting payment', creating: 'Verifying payment setup', unknown: 'Payment setup needs reconciliation',
-  pending: 'Pending payment', paid: 'Paid', failed: 'Payment failed', expired: 'Payment expired', cancelled: 'Payment cancelled',
-  refunded: 'Refunded', review: 'Payment requires review',
+  created: 'Waiting for payment', creating: 'Setting up your payment', unknown: 'Confirming your payment',
+  pending: 'Waiting for payment', paid: 'Paid', failed: 'Payment failed', expired: 'Payment expired', cancelled: 'Payment cancelled',
+  refunded: 'Refunded', review: 'Being checked by our team',
 };
 export const paymentLabel = (order) => PAYMENT_STATES[order.payment?.status]
-  ?? (order.paymentMethod === 'cod' ? 'Due on delivery' : 'Unverified legacy payment');
+  ?? (order.paymentMethod === 'cod' ? 'Due on delivery' : 'Payment not verified');
