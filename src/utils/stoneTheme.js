@@ -20,6 +20,12 @@ export function stoneTheme(stone) {
   return STONE_THEME[stone] ?? STONE_THEME.power;
 }
 
+/** Display name of a stone key, e.g. 'mind' -> 'Mind Stone'. */
+export function stoneName(stone) {
+  const key = STONE_THEME[stone] ? stone : 'power';
+  return `${key[0].toUpperCase()}${key.slice(1)} Stone`;
+}
+
 export function stoneFromColor(color) {
   return COLOR_TO_STONE[color] ?? 'power';
 }

@@ -232,10 +232,14 @@ export function createAdminRouter({ client, storage = client.storage, verifyAcce
   });
   async function reportData(months = 6) {
     const [orders, products, profiles, collections] = await Promise.all([
-      allRows(client, 'orders', ORDER_SELECT), allRows(client, 'products', 'id, archived'),
+      allRows(client, 'orders', ORDER_SELECT), allRows(client, 'products', 'id, archived, stone'),
       allRows(client, 'profiles', 'id, name, phone, role'), allRows(client, 'collections', 'id, stone, color'),
     ]);
-    return { result: reports({ orders, products, profiles, collections }, months, now()), orders, profiles };
+    // Count only customers who confirmed their email; if Auth can't be read, count every customer profile.
+    const customerIds = profiles.filter((profile) => profile.role === 'customer').map((profile) => profile.id);
+    const { emails, available } = await customerEmails(client, customerIds);
+    const confirmedIds = available ? new Set(emails.keys()) : undefined;
+    return { result: reports({ orders, products, profiles, collections, confirmedIds }, months, now()), orders, profiles };
   }
   router.get('/dashboard', async (req, res) => {
     const months = req.query.months ?? '6';

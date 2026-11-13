@@ -10,7 +10,7 @@ import ProductMedia from './ProductMedia';
 import useAddToCart from '../../hooks/useAddToCart';
 import { useWishlist } from '../../context/useWishlist';
 import { formatPrice } from '../../utils/formatPrice';
-import { stoneVar } from '../../utils/stoneTheme';
+import { stoneVar, stoneName } from '../../utils/stoneTheme';
 import './QuickViewModal.css';
 
 export default function QuickViewModal({ product, open, onClose }) {
@@ -35,7 +35,7 @@ export default function QuickViewModal({ product, open, onClose }) {
         <div className="quick-view__info">
           <p className="quick-view__meta">
             <span className="stone-dot" style={{ background: stoneVar(product.stone) }} aria-hidden="true" />
-            {product.type} · {product.color} · {product.gemstone}
+            {product.type} · {stoneName(product.stone)} · {product.gemstone}
           </p>
           <h3 className="quick-view__name">{product.name}</h3>
           <Rating value={product.rating} count={product.reviewCount} showValue />

@@ -3,13 +3,16 @@ import PageContainer, { PageHeader } from '../components/layout/PageContainer';
 import CollectionCard from '../components/product/CollectionCard';
 import PackageCard from '../components/product/PackageCard';
 import Skeleton from '../components/ui/Skeleton';
-import { getCollections, getPackages } from '../services/productService';
+import { getCollections, getPackages, getProducts } from '../services/productService';
+import { bundleFromPrice, catalogPriceRange } from '../utils/bundles';
 import { DIAMOND_STYLES } from '../utils/stoneTheme';
 import './Collections.css';
 
 export default function Collections() {
   const { data: collections, error, reload } = useServiceData(getCollections);
   const { data: packages } = useServiceData(getPackages);
+  // Used only to show each bundle's "From" price; the cards still work if this fails.
+  const { data: catalog } = useServiceData(getProducts);
 
   return (
     <PageContainer title="Collections">
@@ -47,12 +50,15 @@ export default function Collections() {
         </div>
         <div className="package-grid">
           {packages
-            ? packages.map((p) => <PackageCard key={p.id} pkg={p} />)
+            ? packages.map((p) => (
+              <PackageCard key={p.id} pkg={p} fromPrice={catalog ? bundleFromPrice(p, catalog.items) : null}
+                range={catalog && p.liveRange ? catalogPriceRange(catalog.items) : null} />
+            ))
             : Array.from({ length: 5 }, (_, i) => <Skeleton key={i} height={320} />)}
         </div>
         <p className="packages-section__note">
-          Customized Piece: base price + ₱100–₱300 for available size or gemstone-color customization. Package pricing is informational in
-          this demo.
+          Bundles cost the total of the pieces you choose. Customized Piece: base price + ₱100–₱300 for an available size
+          customization.
         </p>
       </section>
     </PageContainer>

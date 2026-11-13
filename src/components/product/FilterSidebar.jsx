@@ -53,7 +53,7 @@ export default function FilterSidebar({ filters, onChange, collections = [], typ
         ))}
       </FilterGroup>
 
-      <FilterGroup title="Stone Color">
+      <FilterGroup title="Infinity Stone">
         <div className="filters__swatches">
           {collections.map((c) => (
             <ColorSwatch

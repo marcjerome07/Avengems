@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingBag, Trash2, ArrowRight } from 'lucide-react';
+import { ShoppingBag, Trash2, ArrowRight, ShieldAlert } from 'lucide-react';
 import PageContainer, { PageHeader } from '../components/layout/PageContainer';
 import Button from '../components/ui/Button';
 import EmptyState from '../components/ui/EmptyState';
@@ -10,10 +10,12 @@ import ProductGrid from '../components/product/ProductGrid';
 import { QuoteTotals } from '../components/cart/OrderSummary';
 import { useCart } from '../context/useCart';
 import { useConfirm } from '../context/useConfirm';
+import { useAuth } from '../context/useAuth';
 import { selectedCartItems } from '../services/cartService';
 import { getSuggestedProducts } from '../services/productService';
 import { formatPrice } from '../utils/formatPrice';
-import { stoneVar } from '../utils/stoneTheme';
+import { ADMIN_SHOPPING_MESSAGE } from '../utils/confirmMessages';
+import { stoneVar, stoneName } from '../utils/stoneTheme';
 import './Cart.css';
 
 // "item" = one cart line (a product with its chosen options); "piece" = one unit of quantity.
@@ -40,7 +42,7 @@ function SelectAllBox({ allSelected, someSelected, onChange, label, id }) {
 function CartLine({ item, selected, state, onQuantity, onRemove, onSelect }) {
   // state: 'priced' (server quote ready), 'checking' (quote loading), 'unselected' (not in the quote)
   const priced = state === 'priced';
-  const optionLabel = `${item.name}, ${item.color}, ${item.size ?? 'one size'}`;
+  const optionLabel = `${item.name}, ${stoneName(item.stone)}, ${item.size ?? 'one size'}`;
   let customization = item.customized ? 'Yes' : 'No';
   if (priced && item.customized) customization = `Yes (+${formatPrice(item.customizationFee)})`;
   if (state === 'checking') customization = 'Checking…';
@@ -65,9 +67,9 @@ function CartLine({ item, selected, state, onQuantity, onRemove, onSelect }) {
         </h2>
         <dl className="cart-line__opts">
           <div>
-            <dt>Color</dt>
+            <dt>Stone</dt>
             <dd>
-              <span className="stone-dot" style={{ background: stoneVar(item.stone) }} aria-hidden="true" /> {item.color}
+              <span className="stone-dot" style={{ background: stoneVar(item.stone) }} aria-hidden="true" /> {stoneName(item.stone)}
             </dd>
           </div>
           <div>
@@ -103,6 +105,7 @@ function CartLine({ item, selected, state, onQuantity, onRemove, onSelect }) {
 export default function Cart() {
   const { items, totals, quotedItems, quoteLoading, quoteError, reloadQuote, itemCount, updateQuantity, removeItem, removeItems, selectItem, selectAll } =
     useCart();
+  const { isAdmin } = useAuth();
   const selectedItems = selectedCartItems(items);
   const selectedCount = selectedItems.length;
   const selectedPieces = selectedItems.reduce((n, item) => n + item.quantity, 0);
@@ -163,16 +166,49 @@ export default function Cart() {
     );
   }
 
+  // Pieces added through "Build your bundle" are listed together under their package name.
+  const looseItems = items.filter((item) => !item.bundle);
+  const bundleGroups = [...items.reduce((groups, item) => {
+    if (item.bundle) groups.set(item.bundle, [...(groups.get(item.bundle) ?? []), item]);
+    return groups;
+  }, new Map())];
+  function renderLine(item) {
+    const selected = item.selected !== false;
+    let state = 'unselected';
+    if (selected) state = ready ? 'priced' : 'checking';
+    if (selected && quoteError) state = 'unselected';
+    return (
+      <CartLine
+        key={item.lineId}
+        item={{ ...item, ...prices.get(item.lineId) }}
+        selected={selected}
+        state={state}
+        onQuantity={updateQuantity}
+        onRemove={handleRemove}
+        onSelect={selectItem}
+      />
+    );
+  }
+
   const merchandise = totals ? totals.subtotal + totals.customizationTotal : 0;
   let barTotal = formatPrice(0);
   if (someSelected) barTotal = quoteError ? '—' : quoteLoading || !totals ? 'Calculating…' : formatPrice(merchandise);
   let checkoutHint = '';
-  if (!someSelected) checkoutHint = 'Select at least one item to check out.';
+  if (isAdmin) checkoutHint = 'Admin accounts can’t check out.';
+  else if (!someSelected) checkoutHint = 'Select at least one item to check out.';
   else if (quoteError) checkoutHint = 'Prices couldn’t be checked. Retry in the order summary.';
 
   return (
     <PageContainer title="Your Cart" className="cart-page">
       <PageHeader title="Your Cart" subtitle={`${plural(items.length, 'item')} · ${plural(itemCount, 'piece')} in your collection`} />
+      {isAdmin && (
+        <p className="cart-admin-note" role="note">
+          <ShieldAlert size={18} strokeWidth={1.5} aria-hidden="true" />
+          <span>
+            <strong>Admin accounts can’t place orders.</strong> {ADMIN_SHOPPING_MESSAGE}
+          </span>
+        </p>
+      )}
 
       <div className="cart-layout">
         <div className="cart-main">
@@ -187,25 +223,21 @@ export default function Cart() {
               {selectedCount} of {plural(items.length, 'item')} selected
             </span>
           </div>
-          <ul className="cart-lines" role="list" aria-label="Cart items">
-            {items.map((item) => {
-              const selected = item.selected !== false;
-              let state = 'unselected';
-              if (selected) state = ready ? 'priced' : 'checking';
-              if (selected && quoteError) state = 'unselected';
-              return (
-                <CartLine
-                  key={item.lineId}
-                  item={{ ...item, ...prices.get(item.lineId) }}
-                  selected={selected}
-                  state={state}
-                  onQuantity={updateQuantity}
-                  onRemove={handleRemove}
-                  onSelect={selectItem}
-                />
-              );
-            })}
-          </ul>
+          {looseItems.length > 0 && (
+            <ul className="cart-lines" role="list" aria-label="Cart items">
+              {looseItems.map(renderLine)}
+            </ul>
+          )}
+          {bundleGroups.map(([bundle, lines]) => (
+            <section key={bundle} className="cart-bundle" aria-label={`${bundle} bundle`}>
+              <h2 className="cart-bundle__title">
+                {bundle} <span className="cart-bundle__count">· {plural(lines.length, 'piece')}</span>
+              </h2>
+              <ul className="cart-lines" role="list">
+                {lines.map(renderLine)}
+              </ul>
+            </section>
+          ))}
         </div>
 
         <aside className="summary-card cart-summary" aria-labelledby="summary-title">
@@ -248,7 +280,7 @@ export default function Cart() {
             <strong>{barTotal}</strong>
           </p>
           <div className="cart-bar__action">
-            <Button to="/checkout" disabled={!ready} size="lg" aria-describedby={checkoutHint ? 'cart-bar-hint' : undefined}>
+            <Button to="/checkout" disabled={!ready || isAdmin} size="lg" aria-describedby={checkoutHint ? 'cart-bar-hint' : undefined}>
               Check Out ({selectedCount})
             </Button>
             {checkoutHint && (

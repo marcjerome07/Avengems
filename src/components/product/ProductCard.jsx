@@ -9,7 +9,7 @@ import Button from '../ui/Button';
 import useAddToCart from '../../hooks/useAddToCart';
 import { useWishlist } from '../../context/useWishlist';
 import { formatPrice } from '../../utils/formatPrice';
-import { stoneVar } from '../../utils/stoneTheme';
+import { stoneVar, stoneName } from '../../utils/stoneTheme';
 import { isCustomizable } from '../../utils/customization';
 import './ProductCard.css';
 
@@ -21,6 +21,8 @@ export default function ProductCard({ product }) {
   const { isWishlisted, isPending, toggle, loading: wishlistLoading } = useWishlist();
   const wished = isWishlisted(product.id);
   const outOfStock = product.stock <= 0;
+  // Same "low stock" rule as the product page and Quick View.
+  const lowStock = !outOfStock && product.stock <= 5;
   const href = `/product/${product.slug}`;
 
   return (
@@ -32,6 +34,7 @@ export default function ProductCard({ product }) {
 
         <div className="product-card__badges">
           {outOfStock && <Badge variant="oos">Out of Stock</Badge>}
+          {lowStock && <Badge variant="bronze">Only {product.stock} left</Badge>}
           {!outOfStock && product.isNew && <Badge variant="new">New</Badge>}
           {isCustomizable(product) && <Badge variant="custom">Customizable</Badge>}
         </div>
@@ -62,7 +65,7 @@ export default function ProductCard({ product }) {
         <p className="product-card__meta">
           <span className="product-card__type">
             <span className="stone-dot" style={{ background: stoneVar(product.stone) }} aria-hidden="true" />
-            {product.type} · {product.color}
+            {product.type} · {stoneName(product.stone)}
           </span>
           <span>{shortMaterial(product.material)}</span>
         </p>

@@ -2,8 +2,7 @@ import express from 'express';
 import healthRoutes from './routes/health.js';
 import { createProductsRouter } from './routes/products.js';
 import { supabase } from './supabase.js';
-import { createAccessTokenVerifier, createAuthClientFactory, createOAuthClientFactory } from './auth.js';
-import { createGoogleOAuth } from './googleOAuth.js';
+import { createAccessTokenVerifier, createAuthClientFactory } from './auth.js';
 import { createXendit } from './xendit.js';
 import { createPayments } from './payments.js';
 import { createPaymentWebhookRouter } from './routes/payments.js';
@@ -44,8 +43,10 @@ const cookieSessions = createCookieSessions({
   production: process.env.NODE_ENV === 'production',
 });
 app.disable('x-powered-by');
-const googleOAuth = createGoogleOAuth({ createOAuthClient: createOAuthClientFactory(authConfig), cookieSessions,
-  origin: appOrigin, supabaseUrl: authConfig.url, production: process.env.NODE_ENV === 'production' });
+// Google sign-in is switched off: no /api/auth/google routes are registered. Existing
+// Google-linked accounts are kept and can still sign in by setting a password via Forgot password.
+// To bring it back, create it with createGoogleOAuth (./googleOAuth.js) and pass it to createAuthRouter.
+const googleOAuth = null;
 const recovery = createRecovery({ createAuthClient: createAuthClientFactory(authConfig), cookieSessions,
   production: process.env.NODE_ENV === 'production' });
 app.use(['/api/auth', '/api/me', '/api/cart', '/api/admin'], (req, res, next) => {

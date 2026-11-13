@@ -6,20 +6,19 @@ import useServiceData from '../hooks/useServiceData';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Skeleton from '../components/ui/Skeleton';
-import HeroVisual from '../components/product/HeroVisual';
+import HeroSlideshow from '../components/product/HeroSlideshow';
 import CollectionCard from '../components/product/CollectionCard';
 import ProductGrid from '../components/product/ProductGrid';
 import { useToast } from '../context/useToast';
 import { getCollections, getFeaturedProducts, getPackages } from '../services/productService';
 import { FEATURED_PRODUCTS_LIMIT } from '../config/store';
-import { formatPriceShort } from '../utils/formatPrice';
 import { validateEmail } from '../utils/validators';
 import { DIAMOND_STYLES } from '../utils/stoneTheme';
 import './Home.css';
 
 const PROMISES = [
   { icon: ShieldCheck, title: 'Hypoallergenic', text: 'Nickel-free 925 sterling silver and surgical-grade stainless steel.' },
-  { icon: Palette, title: 'Customizable', text: 'Choose your size or swap your stone color on selected pieces.' },
+  { icon: Palette, title: 'Customizable', text: 'Choose a custom size on selected pieces, each in its stone’s signature color.' },
   { icon: Gift, title: 'Branded packaging', text: 'Every piece arrives in a pouch or keepsake box, ready to gift.' },
   { icon: GemIcon, title: 'Accessible luxury', text: 'Considered design and real gemstones from ₱299.' },
 ];
@@ -56,7 +55,7 @@ function Hero() {
           </span>
         </div>
         <div className="hero__media">
-          <HeroVisual />
+          <HeroSlideshow />
         </div>
       </div>
     </section>
@@ -131,7 +130,7 @@ function PackagesTeaser() {
           </h2>
           <p className="muted">
             {signature
-              ? `The ${signature.name}: ${signature.includes}, from ${formatPriceShort(signature.priceMin)}.`
+              ? `The ${signature.name}: ${signature.includes}. Pick one piece for each stone.`
               : 'Six pieces representing the six stones, presented in a premium jewelry box.'}
           </p>
         </div>

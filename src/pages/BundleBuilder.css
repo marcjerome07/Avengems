@@ -1,0 +1,168 @@
+.bundle-layout {
+  display: grid;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+@media (min-width: 960px) {
+  .bundle-layout {
+    grid-template-columns: minmax(0, 1fr) 340px;
+  }
+
+  .bundle-summary {
+    position: sticky;
+    top: 96px;
+  }
+}
+
+.bundle-section + .bundle-section {
+  margin-top: var(--space-6);
+}
+
+.bundle-section__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-md, 1.125rem);
+  margin-bottom: var(--space-3);
+}
+
+.bundle-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bundle-piece {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--surface);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.bundle-piece.is-picked {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 1px var(--ink);
+}
+
+.bundle-piece__media {
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: var(--sand);
+}
+
+.bundle-piece__media > * {
+  width: 100%;
+  height: 100%;
+}
+
+.bundle-piece__info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+
+.bundle-piece__info > .btn {
+  margin-top: auto;
+}
+
+.bundle-piece__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  color: var(--ink-soft);
+}
+
+.bundle-piece__name {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+
+.bundle-piece__price {
+  font-size: var(--fs-sm);
+}
+
+.bundle-summary {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.bundle-summary__list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-sm);
+}
+
+.bundle-summary__list li,
+.bundle-summary__total {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.bundle-summary__total {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+  font-size: 1.125rem;
+}
+
+.bundle-summary__note {
+  font-size: var(--fs-xs);
+}
+
+/* Bottom action bar (phones/tablets), styled like the checkout action bar */
+.bundle-bar {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--gutter) calc(var(--space-3) + env(safe-area-inset-bottom));
+  background: rgba(250, 248, 245, 0.97);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 -6px 16px rgba(42, 38, 34, 0.06);
+}
+
+.bundle-bar__status {
+  display: grid;
+  font-size: var(--fs-xs);
+  color: var(--ink-soft);
+}
+
+.bundle-bar__status strong {
+  font-size: var(--fs-md);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.bundle-bar .btn {
+  flex-shrink: 0;
+}
+
+@media (max-width: 959px) {
+  /* Room so the fixed bar never covers the last pieces, the summary or the footer */
+  .app-shell:has(.bundle-bar) {
+    padding-bottom: 88px;
+  }
+}
+
+@media (min-width: 960px) {
+  .bundle-bar {
+    display: none;
+  }
+}

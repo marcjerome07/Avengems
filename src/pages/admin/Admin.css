@@ -912,3 +912,232 @@
   background: rgba(255, 255, 255, 0.85);
   color: var(--ink-soft);
 }
+
+/* Dashboard: Daily / Monthly toggle in the Sales Overview header */
+.sales-range {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sales-range .pill {
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  font-size: var(--fs-xs);
+}
+
+/* Dashboard welcome header */
+.dash-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--space-5);
+  flex-wrap: wrap;
+  padding-bottom: var(--space-5);
+  border-bottom: var(--border);
+}
+
+.dash-hero__date {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--bronze);
+}
+
+.dash-hero__title {
+  margin-top: 6px;
+  font-size: var(--fs-2xl);
+}
+
+.dash-hero__lede {
+  max-width: 60ch;
+  margin-top: 6px;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.dash-hero__gems {
+  padding-bottom: 10px;
+}
+
+/* Sales Overview: total for the chosen period under the title */
+.sales-total {
+  margin-top: 2px;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.sales-total strong {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: var(--ink);
+  font-variant-numeric: lining-nums;
+}
+
+/* Dashboard: Recent Orders feed */
+.recent-feed {
+  display: grid;
+}
+
+.recent-feed__item {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+  border-bottom: var(--border);
+}
+
+.recent-feed__item:last-child {
+  border-bottom: 0;
+}
+
+.recent-feed__avatar {
+  --accent: var(--bronze-light);
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--sand);
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface));
+  color: var(--ink);
+  color: color-mix(in srgb, var(--accent) 60%, var(--ink));
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.recent-feed__name {
+  font-weight: 500;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-feed__meta {
+  margin-top: 2px;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.recent-feed__side {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+}
+
+.recent-feed__total {
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--ink);
+  font-variant-numeric: lining-nums;
+}
+
+/* Dashboard: Best Selling leaderboard */
+.leaderboard {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.leaderboard__item {
+  --accent: var(--bronze-light);
+  display: grid;
+  grid-template-columns: 30px 48px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  transition: background var(--transition);
+}
+
+.leaderboard__item:hover {
+  background: var(--surface-soft);
+}
+
+.leaderboard__rank {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-family: var(--font-serif);
+  font-size: var(--fs-md);
+  color: var(--bronze);
+  font-variant-numeric: lining-nums;
+}
+
+/* Gold, silver and bronze for the top three */
+.leaderboard__item.is-top .leaderboard__rank {
+  color: #fff;
+  font-weight: 600;
+}
+
+.is-top-1 .leaderboard__rank {
+  background: linear-gradient(135deg, #ebd488, #b8902e);
+}
+
+.is-top-2 .leaderboard__rank {
+  background: linear-gradient(135deg, #dfe2e6, #9aa1a9);
+}
+
+.is-top-3 .leaderboard__rank {
+  background: linear-gradient(135deg, #e3b58c, #a56a3c);
+}
+
+.leaderboard__thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--sand);
+}
+
+.leaderboard__thumb > * {
+  width: 100%;
+  height: 100%;
+}
+
+.leaderboard__name {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.leaderboard__sub {
+  font-size: var(--fs-xs);
+  color: var(--text-subtle);
+}
+
+.leaderboard__bar {
+  display: block;
+  height: 4px;
+  margin-top: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--sand);
+  overflow: hidden;
+}
+
+.leaderboard__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.leaderboard__value {
+  text-align: right;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.leaderboard__value small {
+  display: block;
+  font-weight: 400;
+  color: var(--text-subtle);
+}

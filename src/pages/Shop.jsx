@@ -10,7 +10,7 @@ import Modal from '../components/ui/Modal';
 import EmptyState from '../components/ui/EmptyState';
 import Pagination from '../components/ui/Pagination';
 import { getProducts, getCollections, JEWELRY_TYPES, MATERIALS, SORT_OPTIONS } from '../services/productService';
-import { stoneTheme, STONE_ORDER } from '../utils/stoneTheme';
+import { stoneTheme, STONE_ORDER, stoneName } from '../utils/stoneTheme';
 import { formatPriceShort } from '../utils/formatPrice';
 import { SHOP_PAGE_SIZE } from '../config/store';
 import './Shop.css';
@@ -124,7 +124,7 @@ export default function Shop() {
     if (filters.q) out.push({ key: 'q', label: `“${filters.q}”`, remove: { q: '' } });
     filters.types.forEach((t) => out.push({ key: `t-${t}`, label: t, remove: { types: filters.types.filter((x) => x !== t) } }));
     filters.stones.forEach((s) =>
-      out.push({ key: `s-${s}`, label: stoneTheme(s).color, stone: s, remove: { stones: filters.stones.filter((x) => x !== s) } }),
+      out.push({ key: `s-${s}`, label: stoneName(s), stone: s, remove: { stones: filters.stones.filter((x) => x !== s) } }),
     );
     filters.materials.forEach((m) =>
       out.push({ key: `m-${m}`, label: m, remove: { materials: filters.materials.filter((x) => x !== m) } }),
@@ -174,7 +174,7 @@ export default function Shop() {
             onClick={() => update({ stones: singleStone === s ? [] : [s] })}
           >
             <span className="stone-dot" style={{ background: stoneTheme(s).base }} aria-hidden="true" />
-            {stoneTheme(s).color}
+            {stoneName(s)}
           </button>
         ))}
       </div>

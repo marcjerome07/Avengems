@@ -1,4 +1,5 @@
 import { Outlet } from 'react-router-dom';
+import AnnouncementBar from './AnnouncementBar';
 import Navbar from './Navbar';
 import Footer from './Footer';
 
@@ -8,7 +9,7 @@ export default function StoreLayout() {
       <a href="#main" className="skip-link">
         Skip to content
       </a>
-      <p className="announcement">A little color. A little meaning. A piece of you.</p>
+      <AnnouncementBar />
       <Navbar />
       <main id="main" tabIndex={-1}>
         <Outlet />

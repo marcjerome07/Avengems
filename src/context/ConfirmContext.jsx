@@ -4,8 +4,9 @@ import Button from '../components/ui/Button';
 import { ConfirmContext } from './useConfirm';
 
 /**
- * const ok = await confirm({ title, message, confirmLabel, cancelLabel, danger, onConfirm })
- * Resolves true when confirmed, false when cancelled (Cancel, Esc, X or backdrop).
+ * const ok = await confirm({ title, message, confirmLabel, cancelLabel, secondaryLabel, danger, onConfirm })
+ * Resolves true when confirmed, false when cancelled (Cancel, Esc, X or backdrop),
+ * and 'secondary' when the optional middle button (secondaryLabel) is chosen.
  * With `onConfirm`, the dialog stays open with a loading button until it finishes;
  * returning false from it keeps the dialog open (e.g. after an error toast).
  */
@@ -63,6 +64,11 @@ export function ConfirmProvider({ children }) {
             <Button variant="ghost" onClick={cancel} disabled={busy} data-autofocus>
               {dialog?.cancelLabel ?? 'Cancel'}
             </Button>
+            {dialog?.secondaryLabel && (
+              <Button variant="outline" onClick={() => settle('secondary')} disabled={busy}>
+                {dialog.secondaryLabel}
+              </Button>
+            )}
             <Button variant={dialog?.danger ? 'danger' : 'primary'} loading={busy} onClick={handleConfirm}>
               {dialog?.confirmLabel ?? 'Confirm'}
             </Button>

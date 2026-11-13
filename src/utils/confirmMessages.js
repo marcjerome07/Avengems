@@ -5,3 +5,6 @@ export const LOGOUT_CONFIRM = {
   confirmLabel: 'Log out',
   cancelLabel: 'Stay signed in',
 };
+
+// Admins can browse the store but not buy (the server also rejects their orders).
+export const ADMIN_SHOPPING_MESSAGE = 'You’re signed in as an admin. To test shopping, log out and use a customer account.';

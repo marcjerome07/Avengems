@@ -2,6 +2,7 @@ import ProductMedia from '../product/ProductMedia';
 import { formatPrice } from '../../utils/formatPrice';
 import Button from '../ui/Button';
 import './OrderSummary.css';
+import { stoneName } from '../../utils/stoneTheme';
 
 /** Totals block shared by Cart, Checkout, confirmation and order details. */
 export function TotalsList({ totals, showFreeShippingHint = false }) {
@@ -55,8 +56,9 @@ export function MiniItems({ items, priced = true }) {
           </div>
           <div className="mini-item__info">
             <p className="mini-item__name">{item.name}</p>
+            {item.bundle && <p className="bundle-tag">{item.bundle}</p>}
             <p className="mini-item__opts">
-              {item.color} · {item.size}
+              {item.stone ? stoneName(item.stone) : item.color} · {item.size}
               {priced && item.customized && <span className="mini-item__custom"> · Customized (+{formatPrice(item.customizationFee)})</span>}
             </p>
           </div>

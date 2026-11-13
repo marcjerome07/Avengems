@@ -15,7 +15,8 @@ export function createXendit({ env = process.env, fetcher = fetch } = {}) {
       return url.href;
     } catch { throw new ApiError(503, 'INVALID_PAYMENT_LINK', 'The provider checkout link could not be verified. Please check your order.'); }
   }
-  async function request(path, { method = 'GET', body, version, retry = true } = {}) {
+  // notFound: value to return when Xendit answers 404 DATA_NOT_FOUND (e.g. a payment with no refunds).
+  async function request(path, { method = 'GET', body, version, retry = true, notFound } = {}) {
     if (!configured) throw unavailable();
     const headers = { Authorization: `Basic ${Buffer.from(`${env.XENDIT_SECRET_KEY}:`).toString('base64')}`, 'Content-Type': 'application/json' };
     if (version) headers['api-version'] = version;
@@ -23,7 +24,10 @@ export function createXendit({ env = process.env, fetcher = fetch } = {}) {
     try {
       response = await fetcher(`https://api.xendit.co${path}`, { method, headers, redirect: 'error',
         signal: AbortSignal.timeout(10000), ...(body ? { body: JSON.stringify(body) } : {}) });
-      if (method === 'GET' && retry && [429, 502, 503, 504].includes(response.status)) return request(path, { method, version, retry: false });
+      if (method === 'GET' && retry && [429, 502, 503, 504].includes(response.status)) return request(path, { method, version, retry: false, notFound });
+      if (response.status === 404 && notFound !== undefined && (await response.json().catch(() => null))?.error_code === 'DATA_NOT_FOUND') {
+        return notFound;
+      }
       if (!response.ok) throw new Error();
       return await response.json();
     } catch { throw new ApiError(503, 'PAYMENT_PROVIDER_UNAVAILABLE', 'Payment verification is temporarily unavailable. Check this order before trying again.'); }
@@ -37,7 +41,11 @@ export function createXendit({ env = process.env, fetcher = fetch } = {}) {
     create: (body) => { if (!enabled) throw unavailable(); return request('/sessions', { method: 'POST', body }); },
     getSession: (id) => request(`/sessions/${identifier(id, 'ps')}`),
     getRequest: (id) => request(`/v3/payment_requests/${identifier(id, 'pr')}`, { version: '2024-11-11' }),
-    getRefunds: (id) => request(`/v3/refunds?payment_id=${identifier(id, 'py')}`, { version: '2024-11-11' }),
+    // Xendit answers 404 DATA_NOT_FOUND when a payment has no refunds, and wraps a found list as { data: [...] }.
+    getRefunds: async (id) => {
+      const result = await request(`/v3/refunds?payment_id=${identifier(id, 'py')}`, { version: '2024-11-11', notFound: [] });
+      return Array.isArray(result?.data) ? result.data : result;
+    },
     cancelSession: (id) => request(`/sessions/${identifier(id, 'ps')}/cancel`, { method: 'POST' }),
   };
 }

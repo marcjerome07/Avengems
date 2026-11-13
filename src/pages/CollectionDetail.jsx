@@ -8,7 +8,7 @@ import EmptyState from '../components/ui/EmptyState';
 import Button from '../components/ui/Button';
 import Skeleton from '../components/ui/Skeleton';
 import { getCollectionBySlug } from '../services/productService';
-import { STONE_ORDER, stoneTheme } from '../utils/stoneTheme';
+import { STONE_ORDER, stoneTheme, stoneName } from '../utils/stoneTheme';
 import './Collections.css';
 
 export default function CollectionDetail() {
@@ -57,7 +57,7 @@ export default function CollectionDetail() {
           <li>
             <Link to="/collections">Collections</Link>
           </li>
-          <li aria-current="page">{collection?.color ?? stoneTheme(slug).color}</li>
+          <li aria-current="page">{collection?.stoneName ?? stoneName(slug)}</li>
         </ol>
       </nav>
 
@@ -69,7 +69,7 @@ export default function CollectionDetail() {
           <div className="collection-hero__text">
             <span className="eyebrow">{collection.stoneName}</span>
             <h1 className="collection-hero__title">
-              {collection.color} · {collection.tagline}
+              {collection.tagline}
             </h1>
             <p className="collection-hero__desc">{collection.description}</p>
             <p className="collection-hero__facts">
@@ -92,7 +92,7 @@ export default function CollectionDetail() {
           {STONE_ORDER.filter((s) => s !== slug).map((s) => (
             <Link key={s} to={`/collections/${s}`} className="pill">
               <span className="stone-dot" style={{ background: stoneTheme(s).base }} aria-hidden="true" />
-              {stoneTheme(s).color}
+              {stoneName(s)}
             </Link>
           ))}
         </div>

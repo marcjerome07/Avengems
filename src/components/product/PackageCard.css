@@ -80,6 +80,13 @@
   margin-bottom: var(--space-2);
 }
 
+.package-card__price-note {
+  margin-top: calc(-1 * var(--space-1));
+  margin-bottom: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--ink-soft);
+}
+
 @media (max-width: 1199px) {
   .package-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));

@@ -1,5 +1,5 @@
 import { Check } from 'lucide-react';
-import { stoneTheme } from '../../utils/stoneTheme';
+import { stoneName, stoneTheme } from '../../utils/stoneTheme';
 import './ColorSwatch.css';
 
 /**
@@ -8,6 +8,7 @@ import './ColorSwatch.css';
  */
 export default function ColorSwatch({ stone, selected = false, onClick, size = 'md', showLabel = false, role, disabled = false }) {
   const t = stoneTheme(stone);
+  const name = stoneName(stone);
   const style = { background: `linear-gradient(135deg, ${t.light} 0%, ${t.base} 55%, ${t.dark} 100%)` };
   const dot = (
     <span className={`swatch swatch--${size} ${selected ? 'is-selected' : ''}`} style={style} aria-hidden={onClick ? 'true' : undefined}>
@@ -17,7 +18,7 @@ export default function ColorSwatch({ stone, selected = false, onClick, size = '
 
   if (!onClick) {
     return (
-      <span className="swatch-wrap" title={t.color}>
+      <span className="swatch-wrap" title={name}>
         {dot}
         {showLabel && <span className="swatch-wrap__label">{t.color}</span>}
       </span>
@@ -32,8 +33,8 @@ export default function ColorSwatch({ stone, selected = false, onClick, size = '
       className={`swatch-wrap swatch-btn ${selected ? 'is-selected' : ''}`}
       onClick={onClick}
       disabled={disabled}
-      aria-label={t.color}
-      title={t.color}
+      aria-label={name}
+      title={name}
       {...ariaProps}
     >
       {dot}

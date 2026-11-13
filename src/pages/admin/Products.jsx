@@ -29,7 +29,7 @@ import {
   MATERIALS,
 } from '../../services/productService';
 import { formatPrice } from '../../utils/formatPrice';
-import { STONE_ORDER, stoneTheme } from '../../utils/stoneTheme';
+import { STONE_ORDER, stoneName, stoneTheme } from '../../utils/stoneTheme';
 import { runValidators, validateRequired } from '../../utils/validators';
 
 const BLANK = {
@@ -119,7 +119,7 @@ function ProductForm({ initial, collections, onCancel, onSave, saving }) {
         onChange={(e) => set('stone', e.target.value)}
         disabled={Boolean(v.id)}
         hint={v.id ? 'Each product belongs to one stone, so its color is fixed.' : 'Sets the product’s fixed stone color.'}
-        options={STONE_ORDER.map((s) => ({ value: s, label: `${stoneTheme(s).color} · ${gemstoneFor(s)}` }))}
+        options={STONE_ORDER.map((s) => ({ value: s, label: `${stoneName(s)} · ${gemstoneFor(s)}` }))}
       />
       <Select
         label="Material"
@@ -292,7 +292,7 @@ export default function Products() {
           label="Stone"
           value={stone}
           onChange={(e) => setStone(e.target.value)}
-          options={[{ value: '', label: 'All stones' }, ...STONE_ORDER.map((s) => ({ value: s, label: stoneTheme(s).color }))]}
+          options={[{ value: '', label: 'All stones' }, ...STONE_ORDER.map((s) => ({ value: s, label: stoneName(s) }))]}
         />
       </div>
       <p className="admin-note">Changes persist in the catalog. Stock conflicts require reloading; archiving preserves order history.</p>
@@ -347,7 +347,7 @@ export default function Products() {
                   <td data-label="Stone">
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                       <span className="stone-dot" style={{ background: stoneTheme(p.stone).base }} aria-hidden="true" />
-                      {p.color}
+                      {stoneName(p.stone)}
                     </span>
                   </td>
                   <td data-label="Material">{p.material}</td>

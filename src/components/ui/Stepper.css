@@ -74,24 +74,37 @@ button.stepper__btn:hover .stepper__label {
   color: #fff;
 }
 
+/* Phones: four equal columns, each a dot with its label underneath, joined by lines between the dots. */
 @media (max-width: 639px) {
-  .stepper__step.is-current {
-    flex: 1 0 auto;
+  .stepper {
+    gap: 0;
   }
 
-  .stepper__step:not(.is-current) {
-    flex: 0 1 auto;
+  .stepper__step {
+    position: relative;
+    flex: 1 1 0;
+    justify-content: center;
   }
 
   .stepper__step:not(:last-child)::after {
-    min-width: 16px;
+    position: absolute;
+    top: 14px; /* centre of the 28px dot */
+    left: calc(50% + 20px);
+    right: calc(-50% + 20px);
+    min-width: 0;
   }
 
-  .stepper__step:not(.is-current) .stepper__label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
+  .stepper__btn {
+    flex-direction: column;
+    gap: 6px;
+    min-height: 0;
+    width: 100%;
+    font-size: var(--fs-xs);
+  }
+
+  .stepper__label {
+    max-width: 100%;
     overflow: hidden;
-    clip: rect(0, 0, 0, 0);
+    text-overflow: ellipsis;
   }
 }

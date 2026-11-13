@@ -379,17 +379,17 @@ export default function Checkout() {
                 </p>
               )}
 
-              {(values.paymentMethod === 'gcash' || values.paymentMethod === 'maya') && (
+              {['gcash', 'maya', 'card'].includes(values.paymentMethod) && (
                 <p className="checkout-note checkout-note--info">
                   <Info size={18} strokeWidth={1.5} aria-hidden="true" />
-                  Pay with {paymentLabel} on Xendit hosted checkout in Test Mode.
+                  After you place your order, you’ll pay with {paymentLabel} on Xendit’s secure page, then come back here.
                 </p>
               )}
 
               <p className="checkout-note checkout-note--warn">
                 <Lock size={18} strokeWidth={1.5} aria-hidden="true" />
                 <span>
-                  <strong>Test Mode only.</strong> Online payments remain unavailable until validated setup. Card and wallet details are collected only by Xendit.
+                  <strong>Test mode:</strong> no real money is charged. GCash and card details are entered only on Xendit’s page, never on our site.
                 </span>
               </p>
             </section>

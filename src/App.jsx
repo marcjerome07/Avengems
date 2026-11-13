@@ -8,6 +8,7 @@ import { WishlistProvider } from './context/WishlistContext';
 import ScrollToTop from './components/layout/ScrollToTop';
 import StoreLayout from './components/layout/StoreLayout';
 import ProtectedRoute from './components/routing/ProtectedRoute';
+import CustomerOnly from './components/routing/CustomerOnly';
 import AdminRoute from './components/routing/AdminRoute';
 
 import Home from './pages/Home';
@@ -15,6 +16,7 @@ import Shop from './pages/Shop';
 import ProductDetails from './pages/ProductDetails';
 import Collections from './pages/Collections';
 import CollectionDetail from './pages/CollectionDetail';
+import BundleBuilder from './pages/BundleBuilder';
 import About from './pages/About';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
@@ -70,13 +72,16 @@ export default function App() {
                     <Route path="product/:slug" element={<ProductDetails />} />
                     <Route path="collections" element={<Collections />} />
                     <Route path="collections/:slug" element={<CollectionDetail />} />
+                    <Route path="bundle/:id" element={<BundleBuilder />} />
                     <Route path="about" element={<About />} />
                     <Route path="cart" element={<Cart />} />
                     <Route
                       path="checkout"
                       element={
                         <ProtectedRoute>
-                          <Checkout />
+                          <CustomerOnly>
+                            <Checkout />
+                          </CustomerOnly>
                         </ProtectedRoute>
                       }
                     />

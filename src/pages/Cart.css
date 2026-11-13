@@ -329,3 +329,51 @@
     display: none;
   }
 }
+
+/* Bundle group: pieces added together through "Build your bundle" */
+.cart-bundle {
+  margin-top: var(--space-5);
+  padding: var(--space-3) var(--space-4) 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+}
+
+.cart-bundle__title {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding-bottom: var(--space-2);
+  border-bottom: var(--border);
+  font-size: var(--fs-md);
+}
+
+.cart-bundle__count {
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  color: var(--ink-soft);
+}
+
+.cart-bundle .cart-line:last-child {
+  border-bottom: 0;
+}
+
+/* Notice for admins browsing their cart (they can't check out) */
+.cart-admin-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--linen);
+  color: var(--ink-soft);
+  font-size: var(--fs-sm);
+}
+
+.cart-admin-note svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--bronze);
+}

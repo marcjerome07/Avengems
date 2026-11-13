@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Mail, CircleAlert, MailWarning } from 'lucide-react';
 import AuthShell, { FormAlert } from '../../components/auth/AuthShell';
-import GoogleLoginButton from '../../components/auth/GoogleLoginButton';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import { useAuth } from '../../context/useAuth';
@@ -15,9 +14,14 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  // Set by ProtectedRoute/AdminRoute when a logged-out visitor opened a protected page:
+  // send them back there after login. Only internal paths ("/x", never "//x" or "/\x",
+  // which browsers treat as another site) are accepted.
   const from = location.state?.from;
-  const fromPath = from?.pathname?.startsWith('/') && !from.pathname.startsWith('//')
+  const fromPath = from?.pathname?.startsWith('/') && !from.pathname.startsWith('//') && !from.pathname.startsWith('/\\')
     ? `${from.pathname}${from.search ?? ''}${from.hash ?? ''}` : null;
+  // Where to go when there is no page to return to: customers to Home, admins to their dashboard.
+  const landing = (admin) => fromPath ?? (admin ? '/admin' : '/');
 
   const [values, setValues] = useState({
     email: location.state?.email ?? searchParams.get('email') ?? '',
@@ -27,13 +31,12 @@ export default function Login() {
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
 
   if (initializing || signingOut) {
     return <AuthShell title="Welcome Back" docTitle="Log in"><p role="status">Checking your session…</p></AuthShell>;
   }
   if (isAuthenticated && !sessionError && !loading) {
-    return <Navigate to={fromPath ?? (isAdmin ? '/admin' : '/account')} replace />;
+    return <Navigate to={landing(isAdmin)} replace />;
   }
 
   function set(name, value) {
@@ -44,7 +47,6 @@ export default function Login() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (googleLoading) return;
     const result = runValidators(values, {
       email: validateEmail,
       password: (v) => validateRequired(v, 'Password'),
@@ -57,7 +59,7 @@ export default function Login() {
     try {
       const user = await login(values.email.trim(), values.password, values.remember);
       showToast(`Welcome back, ${user.name.split(' ')[0]}.`, { type: 'success' });
-      navigate(fromPath ?? (user.role === 'admin' ? '/admin' : '/account'), { replace: true });
+      navigate(landing(user.role === 'admin'), { replace: true });
     } catch (err) {
       setFormError({ code: err.code, message: err.message, email: err.email });
       setLoading(false);
@@ -116,18 +118,15 @@ export default function Login() {
         />
         <div className="auth-row">
           <label className="checkbox">
-            <input type="checkbox" checked={values.remember} disabled={googleLoading} onChange={(e) => set('remember', e.target.checked)} />
+            <input type="checkbox" checked={values.remember} onChange={(e) => set('remember', e.target.checked)} />
             Remember me
           </label>
           <Link to="/forgot-password">Forgot Password?</Link>
         </div>
-        <Button type="submit" size="lg" fullWidth loading={loading} disabled={googleLoading}>
+        <Button type="submit" size="lg" fullWidth loading={loading}>
           {loading ? 'Logging in…' : 'Log In'}
         </Button>
       </form>
-
-      <div className="auth-divider">or</div>
-      <GoogleLoginButton remember={values.remember} disabled={loading || signingOut || logoutFailed} onPendingChange={setGoogleLoading} />
     </AuthShell>
   );
 }

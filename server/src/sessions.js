@@ -14,13 +14,23 @@ export function createCookieSessions({ createAuthClient, loadUser, origin, produ
   const sessions = new Map();
   const pendingLogins = new Set();
   const attempts = new Map();
+  // IDs of sessions that ended (logout, expiry, invalidation) so they are never resumed from cookies.
+  // Kept only in memory: after a restart it is empty, which is exactly the case resume() exists for.
+  const ended = new Set();
+  function forget(id) {
+    sessions.delete(id);
+    if (typeof id !== 'string') return;
+    ended.add(id);
+    if (ended.size > maxSessions * 2) ended.delete(ended.values().next().value);
+  }
   const csrfSecret = randomBytes(32);
   const graceMs = 10000;
   const csrfLifetime = 24 * 60 * 60 * 1000;
+  // `remember` only records the Remember Me choice so a session resumed after a restart keeps it.
   const names = production
-    ? { access: '__Secure-avg_access', refresh: '__Secure-avg_refresh', sid: '__Host-avg_session', csrf: '__Host-avg_csrf' }
-    : { access: 'avg_access', refresh: 'avg_refresh', sid: 'avg_session', csrf: 'avg_csrf' };
-  const paths = { access: '/api', refresh: '/api/auth', sid: '/', csrf: '/' };
+    ? { access: '__Secure-avg_access', refresh: '__Secure-avg_refresh', sid: '__Host-avg_session', csrf: '__Host-avg_csrf', remember: '__Secure-avg_remember' }
+    : { access: 'avg_access', refresh: 'avg_refresh', sid: 'avg_session', csrf: 'avg_csrf', remember: 'avg_remember' };
+  const paths = { access: '/api', refresh: '/api/auth', sid: '/', csrf: '/', remember: '/api/auth' };
 
   function cookieOptions(kind) {
     return { httpOnly: true, secure: production, sameSite: 'strict', path: paths[kind] };
@@ -47,7 +57,7 @@ export function createCookieSessions({ createAuthClient, loadUser, origin, produ
   function prune() {
     const time = now();
     for (const [id, record] of sessions) {
-      if (Math.min(record.deadline, record.idleDeadline) <= time && !record.pending) { record.closed = true; sessions.delete(id); }
+      if (Math.min(record.deadline, record.idleDeadline) <= time && !record.pending) { record.closed = true; forget(id); }
     }
     for (const [key, entry] of attempts) if (entry.until <= time) attempts.delete(key);
   }
@@ -55,12 +65,14 @@ export function createCookieSessions({ createAuthClient, loadUser, origin, produ
     const id = readCookie(req, 'sid');
     const record = sessions.get(id);
     if (!record || record.closed || record.deadline <= now()) {
-      if (record) { record.closed = true; sessions.delete(id); }
-      clear(res);
+      if (record) { record.closed = true; forget(id); }
+      // An id this process never saw (e.g. after a restart) keeps its cookies so the
+      // browser's refresh call can resume it; known ended sessions are cleared as before.
+      if (record || !id || ended.has(id)) clear(res);
       throw unauthorized();
     }
     if (record.idleDeadline <= now()) {
-      record.closed = true; sessions.delete(id); clear(res);
+      record.closed = true; forget(id); clear(res);
       throw new ApiError(401, 'SESSION_IDLE_EXPIRED', 'Your session expired after 20 minutes of inactivity. Please log in again.');
     }
     return record;
@@ -161,6 +173,9 @@ export function createCookieSessions({ createAuthClient, loadUser, origin, produ
         kind === 'access' ? record.session.expires_at * 1000 - now() : Infinity));
       res.cookie(names[kind], value, options);
     }
+    // Always (re)written so a later non-remembered login overwrites an older '1' without an expiry date.
+    res.cookie(names.remember, record.remember ? '1' : '0',
+      record.remember ? { ...cookieOptions('remember'), maxAge: Math.max(0, record.deadline - now()) } : cookieOptions('remember'));
     writeCsrf(res, record.csrf, record);
   }
   async function revoke(session) {
@@ -204,7 +219,7 @@ export function createCookieSessions({ createAuthClient, loadUser, origin, produ
     }
     if (attempt.invalidated || !active()) { await call(() => revoke(session)); throw unauthorized(); }
     const old = sessions.get(readCookie(req, 'sid'));
-    if (old) { old.closed = true; sessions.delete(old.id); }
+    if (old) { old.closed = true; forget(old.id); }
     if (sessions.size >= maxSessions) { await call(() => revoke(session)); throw authUnavailable(); }
     const record = { id: random(), publicId: random(), idleDeadline: now() + SESSION_IDLE_MS, session, userId: user.id, csrf: newCsrf(),
       remember, closed: false, pending: null, lastRefresh: -Infinity,
@@ -246,7 +261,7 @@ export function createCookieSessions({ createAuthClient, loadUser, origin, produ
     for (const [id, record] of sessions) {
       if (record.userId !== userId) continue;
       record.closed = true;
-      sessions.delete(id);
+      forget(id);
       if (record.pending) pending.push(record.pending);
     }
     return Promise.allSettled(pending);
@@ -259,7 +274,29 @@ export function createCookieSessions({ createAuthClient, loadUser, origin, produ
     // Expiry is verified by getUser; don't discard refresh credentials on an expired access token.
     return token;
   }
+  /**
+   * Sessions live in memory, so a server restart (deploy, free-plan sleep) forgets them.
+   * When the session is unknown but the browser still holds its refresh token, Supabase
+   * re-verifies that token and a fresh session is established exactly as at login.
+   * Sessions that were closed, expired or logged out are not in this path: logout revokes
+   * the refresh token and clears the cookies.
+   */
+  async function resume(req, res) {
+    const token = readCookie(req, 'refresh');
+    if (typeof token !== 'string' || !token || token.length > 4096) { clear(res); throw unauthorized(); }
+    if (ended.has(readCookie(req, 'sid'))) { clear(res); throw unauthorized(); }
+    prune();
+    if (sessions.size >= maxSessions) throw authUnavailable();
+    const result = await call(() => createAuthClient().auth.refreshSession({ refresh_token: token }));
+    if (result.error) {
+      if (rejected(result.error)) { clear(res); throw unauthorized(); }
+      throw authUnavailable();
+    }
+    if (!result.data?.user) { clear(res); throw unauthorized(); }
+    return establish(req, res, {}, result.data, readCookie(req, 'remember') === '1');
+  }
   async function refresh(req, res) {
+    if (!sessions.has(readCookie(req, 'sid'))) return resume(req, res);
     const record = getRecord(req, res);
     const token = readCookie(req, 'refresh');
     if (!equal(token, record.session.refresh_token)
@@ -295,7 +332,7 @@ export function createCookieSessions({ createAuthClient, loadUser, origin, produ
     } catch (error) {
       if (record.closed || error.status === 401 || error.status === 403) {
         record.closed = true;
-        sessions.delete(record.id);
+        forget(record.id);
         clear(res);
       } else if (!record.closed) {
         // A provider rotation may have succeeded before a transient profile error.
@@ -333,7 +370,7 @@ export function createCookieSessions({ createAuthClient, loadUser, origin, produ
     try { record = getRecord(req, res); } catch (error) { clear(res); throw error; }
     // Close locally BEFORE awaiting rotation/revocation, preventing resurrection races.
     record.closed = true;
-    sessions.delete(record.id);
+    forget(record.id);
     clear(res);
     await call(async () => {
       try { if (record.pending) await record.pending; } catch { /* Still revoke the last known session. */ }
