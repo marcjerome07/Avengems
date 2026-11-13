@@ -144,3 +144,14 @@ test('safe URL handling and GET retry never permit redirected secrets or POST re
   let calls=0;const p=createXendit({env:testEnv,fetcher:async()=>{calls++;return calls===1?new Response('',{status:503}):Response.json({status:'ACTIVE'});}});
   await p.getSession(sessionId);assert.equal(calls,2);
 });
+
+test('refund list: Xendit 404 DATA_NOT_FOUND means no refunds, a { data } wrapper is unwrapped, other errors still fail',async()=>{
+  const provider=(response)=>createXendit({env:testEnv,fetcher:async()=>response()});
+  const none=provider(()=>Response.json({error_code:'DATA_NOT_FOUND',message:'No refunds'},{status:404}));
+  assert.deepEqual(await none.getRefunds(paymentId),[]);
+  const refund={refund_id:'rfd-11111111-1111-4111-8111-111111111111',status:'SUCCEEDED'};
+  assert.deepEqual(await provider(()=>Response.json({data:[refund],has_more:false})).getRefunds(paymentId),[refund]);
+  // Any other 404 or failure keeps blocking: unknown provider state is never treated as "no refunds".
+  await assert.rejects(provider(()=>Response.json({error_code:'NOT_FOUND'},{status:404})).getRefunds(paymentId),{code:'PAYMENT_PROVIDER_UNAVAILABLE'});
+  await assert.rejects(provider(()=>Response.json({error_code:'DATA_NOT_FOUND'},{status:404})).getSession(sessionId),{code:'PAYMENT_PROVIDER_UNAVAILABLE'});
+});
