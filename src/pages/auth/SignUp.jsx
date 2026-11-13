@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Mail, User, CircleAlert } from 'lucide-react';
 import AuthShell, { FormAlert } from '../../components/auth/AuthShell';
 import PasswordChecklist, { PasswordMatch } from '../../components/auth/PasswordChecklist';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import { useToast } from '../../context/useToast';
+import { useAuth } from '../../context/useAuth';
 import { register } from '../../services/authService';
 import { runValidators, validateName, validateEmail, validatePassword, validatePasswordMatch } from '../../utils/validators';
 import { checkPassword } from '../../utils/passwordRules';
@@ -19,6 +20,10 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [touched, setTouched] = useState({});
+  const { isAuthenticated, isAdmin } = useAuth();
+
+  // Already logged in: nothing to sign up for. Customers go Home, admins to their dashboard.
+  if (isAuthenticated) return <Navigate to={isAdmin ? '/admin' : '/'} replace />;
 
   const nameRule = (v) => (v.length > 100 ? 'Use at most 100 characters for your name.' : validateName(v));
   const password = checkPassword(values.password, values.confirm);
