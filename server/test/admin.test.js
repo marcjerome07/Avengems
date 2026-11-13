@@ -331,6 +331,14 @@ test('reports use exact order snapshots, exclude cancelled value and keep analyt
   assert.equal(data.best[0].name, 'Historical Ring'); assert.equal(data.best[0].units, 2); assert.equal(data.analytics.byStone[0].revenue, 1800.2);
 });
 
+test('best sellers and stone analytics use the product\'s own stone over a legacy picked color', () => {
+  const legacy = { ...order, items: order.items.map((item) => ({ ...item, stone: 'reality', color: 'Red' })) };
+  const data = reports({ orders: [legacy], products: [product], profiles: [profile], collections: [collection] }, 1, new Date('2026-11-07T00:00:00Z'));
+  assert.equal(data.best[0].stone, 'power'); assert.equal(data.analytics.byStone[0].revenue, 1800.2);
+  // Without a known product, the stone saved on the order is kept.
+  assert.equal(reports({ orders: [legacy], products: [], profiles: [profile], collections: [collection] }).best[0].stone, 'reality');
+});
+
 test('sales count money received, group by Philippine time and count only confirmed customers', () => {
   const orders = [
     // Nov 1, 1:00 AM in Manila = Oct 31 in UTC: belongs to November.

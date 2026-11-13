@@ -232,7 +232,7 @@ export function createAdminRouter({ client, storage = client.storage, verifyAcce
   });
   async function reportData(months = 6) {
     const [orders, products, profiles, collections] = await Promise.all([
-      allRows(client, 'orders', ORDER_SELECT), allRows(client, 'products', 'id, archived'),
+      allRows(client, 'orders', ORDER_SELECT), allRows(client, 'products', 'id, archived, stone'),
       allRows(client, 'profiles', 'id, name, phone, role'), allRows(client, 'collections', 'id, stone, color'),
     ]);
     // Count only customers who confirmed their email; if Auth can't be read, count every customer profile.

@@ -200,10 +200,13 @@ export function reports({ orders, products, profiles, collections, confirmedIds 
     return { label: date.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', timeZone: 'UTC' }), date: key,
       sales: total(matching), orders: matching.length };
   });
+  const productStones = new Map(products.filter((product) => product.stone).map((product) => [product.id, product.stone]));
   const entries = new Map();
   for (const order of active) for (const item of order.items ?? []) {
-    const id = JSON.stringify([item.product_id, item.stone, item.type]);
-    const entry = entries.get(id) ?? { productId: item.product_id, name: item.product_name, type: item.type, stone: item.stone, units: 0, revenue: 0 };
+    // Old orders may carry a customer-picked color; a product's own stone is fixed now, so prefer it.
+    const stone = productStones.get(item.product_id) ?? item.stone;
+    const id = JSON.stringify([item.product_id, stone, item.type]);
+    const entry = entries.get(id) ?? { productId: item.product_id, name: item.product_name, type: item.type, stone, units: 0, revenue: 0 };
     entry.units += item.quantity;
     entry.revenue = sum([entry.revenue, amount(item.unit_price) * item.quantity]); entries.set(id, entry);
   }
