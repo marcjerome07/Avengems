@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import express from 'express';
 import { createAccessTokenVerifier, createAuthClientFactory } from '../src/auth.js';
-import { createCookieSessions } from '../src/sessions.js';
+import { createCookieSessions, SESSION_IDLE_MS } from '../src/sessions.js';
 import { createAuthRouter } from '../src/routes/auth.js';
 import { createMeRouter } from '../src/routes/me.js';
 import { getPublicUser, identityFromUser } from '../src/profile.js';
@@ -91,18 +91,27 @@ async function withApi(run, options = {}) {
     } }) };
   } };
   const config = { url: 'https://example.supabase.co', publishableKey: 'fabricated-key', clientFactory };
-  const sessions = createCookieSessions({ createAuthClient: createAuthClientFactory(config),
-    loadUser: (authUser) => getPublicUser(db, identityFromUser(authUser)), origin: options.origin ?? 'http://localhost:5173',
-    production: options.production, now: () => time, loginLimit: options.loginLimit ?? 100,
-    maxSessions: options.maxSessions ?? 100, maxRateKeys: options.maxRateKeys ?? 100 });
+  // The session store and the routers that use it can be rebuilt to simulate a server restart
+  // (same fake Supabase and browser cookies, empty in-memory sessions).
+  let sessions, authRouter, meRouter, adminAuth;
+  function startServer() {
+    sessions = createCookieSessions({ createAuthClient: createAuthClientFactory(config),
+      loadUser: (authUser) => getPublicUser(db, identityFromUser(authUser)), origin: options.origin ?? 'http://localhost:5173',
+      production: options.production, now: () => time, loginLimit: options.loginLimit ?? 100,
+      maxSessions: options.maxSessions ?? 100, maxRateKeys: options.maxRateKeys ?? 100 });
+    authRouter = createAuthRouter(sessions);
+    meRouter = createMeRouter({ client: db, verifyAccessToken: createAccessTokenVerifier(config), cookieSessions: sessions });
+    adminAuth = createRequireAuth(createAccessTokenVerifier(config), { cookieSessions: sessions });
+  }
+  startServer();
   const app = express();
   app.use(['/api/auth', '/api/me'], (req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
   app.use(express.json());
-  app.use('/api/auth', createAuthRouter(sessions));
-  if (options.enforceAppSession) app.use('/api/me', sessions.requireSession);
-  app.use('/api/admin', sessions.requireSession, createRequireAuth(createAccessTokenVerifier(config), { cookieSessions: sessions }), createRequireAdmin(db));
+  app.use('/api/auth', (req, res, next) => authRouter(req, res, next));
+  if (options.enforceAppSession) app.use('/api/me', (req, res, next) => sessions.requireSession(req, res, next));
+  app.use('/api/admin', (req, res, next) => sessions.requireSession(req, res, next), (req, res, next) => adminAuth(req, res, next), createRequireAdmin(db));
   app.get('/api/admin/probe', (_req, res) => res.json({ ok: true }));
-  app.use('/api/me', createMeRouter({ client: db, verifyAccessToken: createAccessTokenVerifier(config), cookieSessions: sessions }));
+  app.use('/api/me', (req, res, next) => meRouter(req, res, next));
   app.use(errorHandler);
   const server = app.listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));
@@ -138,7 +147,7 @@ async function withApi(run, options = {}) {
     await send('/api/auth/csrf');
     return send('/api/auth/login', { method: 'POST', body });
   }
-  try { await run({ send, login, jar, calls, advance: (ms) => { time += ms; }, restartBrowser, options }); }
+  try { await run({ send, login, jar, calls, advance: (ms) => { time += ms; }, restartBrowser, restartServer: startServer, options }); }
   finally { await new Promise((resolve) => server.close(resolve)); }
 }
 
@@ -413,7 +422,7 @@ test('invalid/revoked refresh credentials clear cookies and reject subsequent se
     await login();
     const result = await send('/api/auth/refresh', { method: 'POST' });
     assert.equal(result.status, 401);
-    assert.ok(result.setCookies.length === 4);
+    assert.ok(result.setCookies.length === 5); // every app cookie, including the Remember Me marker, is cleared
     assert.equal(jar.size, 0);
     assert.equal((await send('/api/me')).status, 401);
   }, { refreshError: { status: 400, message: 'private revoked refresh token' } });
@@ -617,5 +626,45 @@ test('overlapping activity reports cannot move the server deadline backwards', a
     const newer = await send('/api/auth/activity', { method: 'POST', body: {} });
     barrier.resolve(); const late = await older;
     assert.equal(late.status, 200); assert.equal(late.body.session.idleExpiresAt, newer.body.session.idleExpiresAt);
+  });
+});
+
+test('a server restart does not log the user out: the refresh cookie resumes a new session', async () => {
+  await withApi(async ({ login, send, restartServer }) => {
+    assert.equal((await login()).status, 200);
+    restartServer();
+    await send('/api/auth/csrf'); // the site always fetches a fresh CSRF token before a POST
+    assert.equal((await send('/api/me')).status, 401);
+    const resumed = await send('/api/auth/refresh', { method: 'POST' });
+    assert.equal(resumed.status, 200);
+    assert.equal(resumed.body.user.id, user.id);
+    assert.doesNotMatch(JSON.stringify(resumed.body), /fabricated-access|fabricated-refresh/);
+    assert.equal((await send('/api/me')).status, 200);
+  });
+});
+
+test('a resumed session keeps the Remember Me choice', async () => {
+  await withApi(async ({ login, send, restartServer }) => {
+    await login({ email: user.email, password: 'fabricated', remember: true });
+    restartServer();
+    await send('/api/auth/csrf'); // the site always fetches a fresh CSRF token before a POST
+    const resumed = await send('/api/auth/refresh', { method: 'POST' });
+    assert.equal(resumed.status, 200);
+    assert.match(resumed.setCookies.find((cookie) => cookie.startsWith('avg_session=')), /Max-Age=/);
+  });
+});
+
+test('a logged-out or idle-expired session is never resumed from its cookies', async () => {
+  await withApi(async ({ login, send, jar }) => {
+    await login();
+    const before = new Map(jar);
+    assert.equal((await send('/api/auth/logout', { method: 'POST' })).status, 200);
+    assert.equal((await send('/api/auth/refresh', { method: 'POST', cookies: before })).status, 401);
+  });
+  await withApi(async ({ login, send, advance }) => {
+    await login();
+    advance(SESSION_IDLE_MS + 1000);
+    assert.equal((await send('/api/auth/refresh', { method: 'POST' })).status, 401);
+    assert.equal((await send('/api/me')).status, 401);
   });
 });

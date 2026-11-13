@@ -143,7 +143,7 @@ test('Google new/existing customer uses real SDK PKCE, trusted profile and exist
     assert.ok(result.headers.get('location').endsWith('#'), 'Do not inherit provider fragments');
     assert.equal(calls.exchange.length, 1);
     assert.deepEqual(calls.profiles, [defaultUser.id]);
-    assert.equal(result.setCookies.length, 4);
+    assert.equal(result.setCookies.length, 5); // access, refresh, session, Remember Me marker, csrf
     assert.ok(result.setCookies.every((cookie) => /HttpOnly/.test(cookie) && /SameSite=Strict/.test(cookie)));
     assert.equal(result.setCookies.every((cookie) => /Max-Age=/.test(cookie)), remember);
     assert.equal((await send('/api/admin/probe')).status, 403, 'Google role metadata cannot create admin');
