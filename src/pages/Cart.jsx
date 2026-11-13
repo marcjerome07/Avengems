@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingBag, Trash2, ArrowRight } from 'lucide-react';
+import { ShoppingBag, Trash2, ArrowRight, ShieldAlert } from 'lucide-react';
 import PageContainer, { PageHeader } from '../components/layout/PageContainer';
 import Button from '../components/ui/Button';
 import EmptyState from '../components/ui/EmptyState';
@@ -10,9 +10,11 @@ import ProductGrid from '../components/product/ProductGrid';
 import { QuoteTotals } from '../components/cart/OrderSummary';
 import { useCart } from '../context/useCart';
 import { useConfirm } from '../context/useConfirm';
+import { useAuth } from '../context/useAuth';
 import { selectedCartItems } from '../services/cartService';
 import { getSuggestedProducts } from '../services/productService';
 import { formatPrice } from '../utils/formatPrice';
+import { ADMIN_SHOPPING_MESSAGE } from '../utils/confirmMessages';
 import { stoneVar, stoneName } from '../utils/stoneTheme';
 import './Cart.css';
 
@@ -103,6 +105,7 @@ function CartLine({ item, selected, state, onQuantity, onRemove, onSelect }) {
 export default function Cart() {
   const { items, totals, quotedItems, quoteLoading, quoteError, reloadQuote, itemCount, updateQuantity, removeItem, removeItems, selectItem, selectAll } =
     useCart();
+  const { isAdmin } = useAuth();
   const selectedItems = selectedCartItems(items);
   const selectedCount = selectedItems.length;
   const selectedPieces = selectedItems.reduce((n, item) => n + item.quantity, 0);
@@ -191,12 +194,21 @@ export default function Cart() {
   let barTotal = formatPrice(0);
   if (someSelected) barTotal = quoteError ? '—' : quoteLoading || !totals ? 'Calculating…' : formatPrice(merchandise);
   let checkoutHint = '';
-  if (!someSelected) checkoutHint = 'Select at least one item to check out.';
+  if (isAdmin) checkoutHint = 'Admin accounts can’t check out.';
+  else if (!someSelected) checkoutHint = 'Select at least one item to check out.';
   else if (quoteError) checkoutHint = 'Prices couldn’t be checked. Retry in the order summary.';
 
   return (
     <PageContainer title="Your Cart" className="cart-page">
       <PageHeader title="Your Cart" subtitle={`${plural(items.length, 'item')} · ${plural(itemCount, 'piece')} in your collection`} />
+      {isAdmin && (
+        <p className="cart-admin-note" role="note">
+          <ShieldAlert size={18} strokeWidth={1.5} aria-hidden="true" />
+          <span>
+            <strong>Admin accounts can’t place orders.</strong> {ADMIN_SHOPPING_MESSAGE}
+          </span>
+        </p>
+      )}
 
       <div className="cart-layout">
         <div className="cart-main">
@@ -268,7 +280,7 @@ export default function Cart() {
             <strong>{barTotal}</strong>
           </p>
           <div className="cart-bar__action">
-            <Button to="/checkout" disabled={!ready} size="lg" aria-describedby={checkoutHint ? 'cart-bar-hint' : undefined}>
+            <Button to="/checkout" disabled={!ready || isAdmin} size="lg" aria-describedby={checkoutHint ? 'cart-bar-hint' : undefined}>
               Check Out ({selectedCount})
             </Button>
             {checkoutHint && (

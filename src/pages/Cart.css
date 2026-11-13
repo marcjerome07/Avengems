@@ -357,3 +357,23 @@
 .cart-bundle .cart-line:last-child {
   border-bottom: 0;
 }
+
+/* Notice for admins browsing their cart (they can't check out) */
+.cart-admin-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--linen);
+  color: var(--ink-soft);
+  font-size: var(--fs-sm);
+}
+
+.cart-admin-note svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--bronze);
+}

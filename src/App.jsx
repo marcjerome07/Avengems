@@ -8,6 +8,7 @@ import { WishlistProvider } from './context/WishlistContext';
 import ScrollToTop from './components/layout/ScrollToTop';
 import StoreLayout from './components/layout/StoreLayout';
 import ProtectedRoute from './components/routing/ProtectedRoute';
+import CustomerOnly from './components/routing/CustomerOnly';
 import AdminRoute from './components/routing/AdminRoute';
 
 import Home from './pages/Home';
@@ -78,7 +79,9 @@ export default function App() {
                       path="checkout"
                       element={
                         <ProtectedRoute>
-                          <Checkout />
+                          <CustomerOnly>
+                            <Checkout />
+                          </CustomerOnly>
                         </ProtectedRoute>
                       }
                     />
