@@ -12,6 +12,7 @@ import { useConfirm } from '../../context/useConfirm';
 import { useToast } from '../../context/useToast';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import { formatPrice } from '../../utils/formatPrice';
+import { stoneName } from '../../utils/stoneTheme';
 
 export function WishlistLoadState({ loading, error, onRetry, children }) {
   if (loading) return <div role="status" aria-label="Loading wishlist"><ProductGridSkeleton count={3} /></div>;
@@ -66,7 +67,7 @@ export default function Wishlist() {
                 </Link>
                 <div>
                   <p className="wish-card__meta">
-                    {p.type} · {p.color} · {p.material}
+                    {p.type} · {stoneName(p.stone)} · {p.material}
                   </p>
                   <h2 className="wish-card__name">
                     <Link to={`/product/${p.slug}`}>{p.name}</Link>

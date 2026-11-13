@@ -22,12 +22,12 @@ export default function CollectionCard({ collection, showDescription = true }) {
     <article className="collection-card">
       <Link to={`/collections/${collection.slug}`} className="collection-card__link">
         <StoneGem stone={collection.stone} />
-        <h3 className="collection-card__title">{collection.color}</h3>
+        <h3 className="collection-card__title">{collection.stoneName}</h3>
         <p className="collection-card__tagline">{collection.tagline}</p>
         {showDescription && (
           <>
             <p className="collection-card__stone">
-              {collection.stoneName} · {collection.gemstone.replace(' (synthetic)', '')}
+              {collection.color} · {collection.gemstone.replace(' (synthetic)', '')}
             </p>
             <p className="collection-card__desc">{collection.description}</p>
           </>

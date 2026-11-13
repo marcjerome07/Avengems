@@ -13,7 +13,7 @@ import { useConfirm } from '../context/useConfirm';
 import { selectedCartItems } from '../services/cartService';
 import { getSuggestedProducts } from '../services/productService';
 import { formatPrice } from '../utils/formatPrice';
-import { stoneVar } from '../utils/stoneTheme';
+import { stoneVar, stoneName } from '../utils/stoneTheme';
 import './Cart.css';
 
 // "item" = one cart line (a product with its chosen options); "piece" = one unit of quantity.
@@ -40,7 +40,7 @@ function SelectAllBox({ allSelected, someSelected, onChange, label, id }) {
 function CartLine({ item, selected, state, onQuantity, onRemove, onSelect }) {
   // state: 'priced' (server quote ready), 'checking' (quote loading), 'unselected' (not in the quote)
   const priced = state === 'priced';
-  const optionLabel = `${item.name}, ${item.color}, ${item.size ?? 'one size'}`;
+  const optionLabel = `${item.name}, ${stoneName(item.stone)}, ${item.size ?? 'one size'}`;
   let customization = item.customized ? 'Yes' : 'No';
   if (priced && item.customized) customization = `Yes (+${formatPrice(item.customizationFee)})`;
   if (state === 'checking') customization = 'Checking…';
@@ -65,9 +65,9 @@ function CartLine({ item, selected, state, onQuantity, onRemove, onSelect }) {
         </h2>
         <dl className="cart-line__opts">
           <div>
-            <dt>Color</dt>
+            <dt>Stone</dt>
             <dd>
-              <span className="stone-dot" style={{ background: stoneVar(item.stone) }} aria-hidden="true" /> {item.color}
+              <span className="stone-dot" style={{ background: stoneVar(item.stone) }} aria-hidden="true" /> {stoneName(item.stone)}
             </dd>
           </div>
           <div>
@@ -163,6 +163,30 @@ export default function Cart() {
     );
   }
 
+  // Pieces added through "Build your bundle" are listed together under their package name.
+  const looseItems = items.filter((item) => !item.bundle);
+  const bundleGroups = [...items.reduce((groups, item) => {
+    if (item.bundle) groups.set(item.bundle, [...(groups.get(item.bundle) ?? []), item]);
+    return groups;
+  }, new Map())];
+  function renderLine(item) {
+    const selected = item.selected !== false;
+    let state = 'unselected';
+    if (selected) state = ready ? 'priced' : 'checking';
+    if (selected && quoteError) state = 'unselected';
+    return (
+      <CartLine
+        key={item.lineId}
+        item={{ ...item, ...prices.get(item.lineId) }}
+        selected={selected}
+        state={state}
+        onQuantity={updateQuantity}
+        onRemove={handleRemove}
+        onSelect={selectItem}
+      />
+    );
+  }
+
   const merchandise = totals ? totals.subtotal + totals.customizationTotal : 0;
   let barTotal = formatPrice(0);
   if (someSelected) barTotal = quoteError ? '—' : quoteLoading || !totals ? 'Calculating…' : formatPrice(merchandise);
@@ -187,25 +211,21 @@ export default function Cart() {
               {selectedCount} of {plural(items.length, 'item')} selected
             </span>
           </div>
-          <ul className="cart-lines" role="list" aria-label="Cart items">
-            {items.map((item) => {
-              const selected = item.selected !== false;
-              let state = 'unselected';
-              if (selected) state = ready ? 'priced' : 'checking';
-              if (selected && quoteError) state = 'unselected';
-              return (
-                <CartLine
-                  key={item.lineId}
-                  item={{ ...item, ...prices.get(item.lineId) }}
-                  selected={selected}
-                  state={state}
-                  onQuantity={updateQuantity}
-                  onRemove={handleRemove}
-                  onSelect={selectItem}
-                />
-              );
-            })}
-          </ul>
+          {looseItems.length > 0 && (
+            <ul className="cart-lines" role="list" aria-label="Cart items">
+              {looseItems.map(renderLine)}
+            </ul>
+          )}
+          {bundleGroups.map(([bundle, lines]) => (
+            <section key={bundle} className="cart-bundle" aria-label={`${bundle} bundle`}>
+              <h2 className="cart-bundle__title">
+                {bundle} <span className="cart-bundle__count">· {plural(lines.length, 'piece')}</span>
+              </h2>
+              <ul className="cart-lines" role="list">
+                {lines.map(renderLine)}
+              </ul>
+            </section>
+          ))}
         </div>
 
         <aside className="summary-card cart-summary" aria-labelledby="summary-title">

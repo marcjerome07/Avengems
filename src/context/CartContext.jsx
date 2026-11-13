@@ -42,7 +42,8 @@ export function CartProvider({ children }) {
   }, []);
 
   const addItem = useCallback(
-    (product, { size = product.defaultSize, quantity = 1, silent = false } = {}) => {
+    // bundle: optional package name (e.g. 'Infinity Trio') shown as a tag on the line; display only, never sent to the server.
+    (product, { size = product.defaultSize, quantity = 1, silent = false, bundle } = {}) => {
       // Stone color is fixed per product; a caller can never change it.
       const color = product.color;
       if (product.stock <= 0) {
@@ -56,7 +57,8 @@ export function CartProvider({ children }) {
       setItems((prev) => {
         const existing = prev.find((i) => i.lineId === lineId);
         if (existing) {
-          return prev.map((i) => (i.lineId === lineId ? { ...i, selected: true, quantity: Math.min(maxQty, i.quantity + quantity) } : i));
+          return prev.map((i) => (i.lineId === lineId
+            ? { ...i, selected: true, quantity: Math.min(maxQty, i.quantity + quantity), ...(bundle ? { bundle } : {}) } : i));
         }
         return [
           ...prev,
@@ -78,6 +80,7 @@ export function CartProvider({ children }) {
             quantity: Math.min(maxQty, quantity),
             maxQuantity: maxQty,
             images: product.images,
+            ...(bundle ? { bundle } : {}),
           },
         ];
       });
@@ -119,7 +122,8 @@ export function CartProvider({ children }) {
   const { quote, loading: quoteLoading, error: quoteError, reload: reloadQuote } = useCartQuote(selectedItems);
   const itemCount = items.reduce((count, item) => count + item.quantity, 0);
   const totals = quote?.totals ?? null;
-  const quotedItems = useMemo(() => quote?.items.map((item, index) => ({ ...item, lineId: selectedItems[index]?.lineId ?? item.lineId })) ?? null, [quote, selectedItems]);
+  const quotedItems = useMemo(() => quote?.items.map((item, index) => ({ ...item, lineId: selectedItems[index]?.lineId ?? item.lineId,
+    bundle: selectedItems[index]?.bundle })) ?? null, [quote, selectedItems]);
 
   const value = useMemo(
     () => ({ items, selectedItems, selectItem, selectAll, totals, quotedItems, quoteLoading, quoteError, reloadQuote, itemCount, addItem, updateQuantity, removeItem, removeItems, clearCart, completeCheckout }),

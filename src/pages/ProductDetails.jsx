@@ -17,7 +17,7 @@ import useLoginPrompt from '../hooks/useLoginPrompt';
 import { useWishlist } from '../context/useWishlist';
 import { getProductBySlug, getRelatedProducts, getProductInfo, CUSTOMIZATION_FEE_RANGE } from '../services/productService';
 import { formatPrice, formatPriceShort } from '../utils/formatPrice';
-import { stoneTheme, stoneVar } from '../utils/stoneTheme';
+import { stoneVar, stoneName } from '../utils/stoneTheme';
 import { getCustomization, isCustomizable } from '../utils/customization';
 import './ProductDetails.css';
 
@@ -45,7 +45,6 @@ function ProductView({ product }) {
 
   // Each piece belongs to one Infinity Stone, so its stone color is fixed.
   const { stone, color } = product;
-  const stoneName = `${stone.charAt(0).toUpperCase()}${stone.slice(1)} Stone`;
   const outOfStock = product.stock <= 0;
   const customizable = isCustomizable(product);
   const { customized, fee } = getCustomization(product, size);
@@ -129,7 +128,7 @@ function ProductView({ product }) {
             <Link to="/shop">Shop</Link>
           </li>
           <li>
-            <Link to={`/collections/${product.stone}`}>{stoneTheme(product.stone).color}</Link>
+            <Link to={`/collections/${product.stone}`}>{stoneName(product.stone)}</Link>
           </li>
           <li aria-current="page">{product.name}</li>
         </ol>
@@ -166,7 +165,7 @@ function ProductView({ product }) {
         <div className="pdp__info">
           <p className="pdp__meta">
             <span className="stone-dot" style={{ background: stoneVar(product.stone) }} aria-hidden="true" />
-            {product.type} · {stoneTheme(product.stone).color} Stone Collection
+            {product.type} · {stoneName(product.stone)} Collection
           </p>
           <h1 className="pdp__name">{product.name}</h1>
           <Rating value={product.rating} count={product.reviewCount} showValue size={16} />
@@ -193,7 +192,7 @@ function ProductView({ product }) {
               <dt>Stone</dt>
               <dd className="pdp__stone">
                 <span className="stone-dot" style={{ background: stoneVar(stone) }} aria-hidden="true" />
-                {stoneName} · {color}
+                {stoneName(stone)} · {color}
               </dd>
             </div>
             <div>
@@ -252,9 +251,9 @@ function ProductView({ product }) {
                 <p className="customize__summary-title">Your selection</p>
                 <ul role="list">
                   <li>
-                    <span>Stone color</span>
+                    <span>Stone</span>
                     <span>
-                      <span className="stone-dot" style={{ background: stoneVar(stone) }} aria-hidden="true" /> {color}
+                      <span className="stone-dot" style={{ background: stoneVar(stone) }} aria-hidden="true" /> {stoneName(stone)}
                     </span>
                   </li>
                   <li>

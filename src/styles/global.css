@@ -161,6 +161,20 @@ textarea:focus-visible {
   background: var(--bronze-light);
 }
 
+/* Small pill naming the package a cart line was added with (cart, checkout summaries) */
+.bundle-tag {
+  display: inline-block;
+  width: fit-content;
+  margin-top: 2px;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--linen);
+  color: var(--bronze);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
 .section-eyebrow {
   display: block;
   font-size: var(--fs-sm);

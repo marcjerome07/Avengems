@@ -13,7 +13,7 @@ import useServiceData from '../hooks/useServiceData';
 import { getPackages, getProducts } from '../services/productService';
 import { getCustomization } from '../utils/customization';
 import { formatPrice } from '../utils/formatPrice';
-import { STONE_ORDER, stoneTheme, stoneVar } from '../utils/stoneTheme';
+import { STONE_ORDER, stoneVar, stoneName } from '../utils/stoneTheme';
 import './BundleBuilder.css';
 
 const loadBundle = async () => {
@@ -31,7 +31,7 @@ function BundlePiece({ product, picked, size, onToggle, onSize, disabled }) {
       </div>
       <div className="bundle-piece__info">
         <p className="bundle-piece__meta">
-          <span className="stone-dot" style={{ background: stoneVar(product.stone) }} aria-hidden="true" /> {product.type} · {product.color}
+          <span className="stone-dot" style={{ background: stoneVar(product.stone) }} aria-hidden="true" /> {product.type} · {stoneName(product.stone)}
         </p>
         <h3 className="bundle-piece__name">{product.name}</h3>
         <p className="bundle-piece__price">{outOfStock ? 'Out of stock' : formatPrice(price)}</p>
@@ -92,7 +92,7 @@ export default function BundleBuilder() {
 
   async function addBundle() {
     if (!complete || !(await requireLogin(`add the ${pkg.name} to your bag`))) return;
-    const added = chosen.filter(({ product, size }) => addItem(product, { size, silent: true }));
+    const added = chosen.filter(({ product, size }) => addItem(product, { size, silent: true, bundle: pkg.name }));
     if (added.length === chosen.length) {
       showToast(`${pkg.name} added to your bag (${added.length} pieces).`, { type: 'success' });
       navigate('/cart');
@@ -100,7 +100,7 @@ export default function BundleBuilder() {
   }
 
   const sections = perStone
-    ? STONE_ORDER.map((stone) => ({ key: stone, title: `${stoneTheme(stone).color} · ${stone[0].toUpperCase()}${stone.slice(1)} Stone`,
+    ? STONE_ORDER.map((stone) => ({ key: stone, title: stoneName(stone),
       items: products.filter((p) => p.stone === stone) }))
     : [{ key: 'all', title: null, items: products }];
   const pickedStones = new Set(chosen.map(({ product }) => product.stone));
