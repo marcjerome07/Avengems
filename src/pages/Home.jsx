@@ -18,7 +18,7 @@ import './Home.css';
 
 const PROMISES = [
   { icon: ShieldCheck, title: 'Hypoallergenic', text: 'Nickel-free 925 sterling silver and surgical-grade stainless steel.' },
-  { icon: Palette, title: 'Customizable', text: 'Choose your size or swap your stone color on selected pieces.' },
+  { icon: Palette, title: 'Customizable', text: 'Choose a custom size on selected pieces, each in its stone’s signature color.' },
   { icon: Gift, title: 'Branded packaging', text: 'Every piece arrives in a pouch or keepsake box, ready to gift.' },
   { icon: GemIcon, title: 'Accessible luxury', text: 'Considered design and real gemstones from ₱299.' },
 ];

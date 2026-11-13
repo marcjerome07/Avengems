@@ -113,8 +113,13 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-6);
-  padding-block: var(--space-6);
   border-block: var(--border);
+}
+
+/* [role='list'] outranks the global list reset (padding: 0) so the lines get breathing room.
+   Only the padding lives here, so the tablet/phone column rules below still apply. */
+.promise-row[role='list'] {
+  padding-block: var(--space-7);
 }
 
 .promise {
