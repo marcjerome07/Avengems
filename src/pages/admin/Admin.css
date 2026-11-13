@@ -912,3 +912,16 @@
   background: rgba(255, 255, 255, 0.85);
   color: var(--ink-soft);
 }
+
+/* Dashboard: Daily / Monthly toggle in the Sales Overview header */
+.sales-range {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sales-range .pill {
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  font-size: var(--fs-xs);
+}

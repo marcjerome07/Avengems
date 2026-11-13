@@ -15,9 +15,9 @@ export default function Analytics() {
 
   return (
     <>
-      <AdminHeader title="Analytics" subtitle="Demo order-item value, excluding cancellations. These are not collected payments." />
+      <AdminHeader title="Analytics" subtitle="Value of the items customers ordered, excluding cancelled and unpaid online orders. Cash on Delivery orders count from when they're placed." />
       <AdminDataState error={error} onRetry={reload} />
-      {data && !data.topProducts.length && <p className="panel">No non-cancelled order items yet. Sales are zero until real demo orders are placed.</p>}
+      {data && !data.topProducts.length && <p className="panel">No orders yet. These charts fill in as customers place orders.</p>}
 
       <div className="admin-grid-even">
         <section className="panel" aria-labelledby="stone-title">

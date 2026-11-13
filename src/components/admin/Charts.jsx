@@ -1,7 +1,5 @@
 import {
   ResponsiveContainer,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -70,26 +68,23 @@ function ChartTooltip({ active, payload, label, valueFormatter = formatPrice, la
   );
 }
 
-/** Revenue over the last months: single line, crosshair tooltip. */
-export function SalesLineChart({ data }) {
+/**
+ * Sales per day or month as bars, so days with no sales read as empty instead of
+ * a smoothed curve. data: [{ label: 'Nov 7' | 'Nov 2026', sales, orders }].
+ */
+export function SalesChart({ data }) {
   return (
     <ResponsiveContainer width="100%" height={280}>
-      <LineChart data={data} margin={{ top: 12, right: 16, bottom: 0, left: 0 }}>
+      <BarChart data={data} margin={{ top: 12, right: 16, bottom: 0, left: 0 }} barCategoryGap="20%">
         <CartesianGrid vertical={false} stroke={GRID} />
-        <XAxis dataKey="month" {...axisProps} />
-        <YAxis {...axisProps} axisLine={false} width={64} tickFormatter={(v) => formatPriceShort(v)} />
-        <Tooltip content={<ChartTooltip />} cursor={{ stroke: MUTED, strokeDasharray: '3 3' }} />
-        <Line
-          type="monotone"
-          dataKey="sales"
-          name="Sales"
-          isAnimationActive={false}
-          stroke={SERIES}
-          strokeWidth={2}
-          dot={{ r: 4, fill: SERIES, stroke: '#fff', strokeWidth: 2 }}
-          activeDot={{ r: 6, fill: SERIES, stroke: '#fff', strokeWidth: 2 }}
-        />
-      </LineChart>
+        <XAxis dataKey="label" {...axisProps} interval="preserveStartEnd" minTickGap={16} />
+        <YAxis {...axisProps} axisLine={false} width={64} tickFormatter={(v) => formatPriceShort(v)} allowDecimals={false} />
+        <Tooltip content={<ChartTooltip labelFormatter={(label, payload) => {
+          const orders = payload[0]?.payload.orders ?? 0;
+          return `${label} · ${orders} ${orders === 1 ? 'order' : 'orders'}`;
+        }} />} cursor={{ fill: 'rgba(42,38,34,0.04)' }} />
+        <Bar dataKey="sales" name="Sales" fill={SERIES} radius={[4, 4, 0, 0]} maxBarSize={48} isAnimationActive={false} />
+      </BarChart>
     </ResponsiveContainer>
   );
 }

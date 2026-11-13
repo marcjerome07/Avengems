@@ -158,19 +158,47 @@ export function productPatch(body, creating = false) {
   if (!Object.keys(row).length) invalid('Provide product fields.');
   return row;
 }
-export function reports({ orders, products, profiles, collections }, months = 6, now = new Date()) {
+// Reports follow the store's calendar: Philippine time (UTC+8, no daylight saving).
+const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** YYYY-MM-DD of a timestamp in Philippine time. */
+export const manilaDay = (value) => new Date(Date.parse(value) + MANILA_OFFSET_MS).toISOString().slice(0, 10);
+
+/**
+ * Dashboard and analytics figures.
+ * - Sales (totals, daily and monthly charts) = money received: paid online orders, plus Cash on
+ *   Delivery orders once Delivered. Undelivered COD is reported separately as awaitingCollection.
+ * - Analytics and best sellers = value of orders placed (non-cancelled, excluding unpaid online orders).
+ * confirmedIds (optional Set): only these customers are counted; omit when Auth can't be read.
+ */
+export function reports({ orders, products, profiles, collections, confirmedIds }, months = 6, now = new Date(), days = 30) {
   const amount = (value) => cents(value);
   const sum = (values) => {
     const total = values.reduce((a, b) => a + b, 0);
     if (!Number.isSafeInteger(total)) throw new ApiError(503, 'REPORT_UNAVAILABLE', 'Report amount exceeds supported precision.');
     return total;
   };
+  const total = (list) => sum(list.map((order) => amount(order.total))) / 100;
   const active = orders.filter((order) => order.status !== 'Cancelled' && (!order.payment_state || order.payment_state === 'paid'));
+  const received = orders.filter((order) => order.status !== 'Cancelled'
+    && (order.payment_state === 'paid' || (!order.payment_state && order.status === 'Delivered')));
+  const awaitingCollection = orders.filter((order) => order.status !== 'Cancelled' && !order.payment_state && order.status !== 'Delivered');
+  const receivedDays = received.map((order) => ({ order, day: manilaDay(order.created_at) }));
+  const today = manilaDay(now.toISOString());
+  const [year, month] = today.split('-').map(Number);
   const sales = Array.from({ length: months }, (_, index) => {
-    const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - months + 1 + index, 1));
-    const matching = active.filter((order) => String(order.created_at).slice(0, 7) === date.toISOString().slice(0, 7));
-    return { month: date.toLocaleDateString('en-PH', { month: 'short', year: '2-digit', timeZone: 'UTC' }),
-      sales: sum(matching.map((order) => amount(order.total))) / 100, orders: matching.length };
+    const date = new Date(Date.UTC(year, month - months + index, 1));
+    const key = date.toISOString().slice(0, 7);
+    const matching = receivedDays.filter(({ day }) => day.startsWith(key)).map(({ order }) => order);
+    const label = date.toLocaleDateString('en-PH', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+    return { label, month: label, sales: total(matching), orders: matching.length };
+  });
+  const daily = Array.from({ length: days }, (_, index) => {
+    const date = new Date(Date.parse(`${today}T00:00:00Z`) - (days - 1 - index) * DAY_MS);
+    const key = date.toISOString().slice(0, 10);
+    const matching = receivedDays.filter(({ day }) => day === key).map(({ order }) => order);
+    return { label: date.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', timeZone: 'UTC' }), date: key,
+      sales: total(matching), orders: matching.length };
   });
   const entries = new Map();
   for (const order of active) for (const item of order.items ?? []) {
@@ -188,9 +216,11 @@ export function reports({ orders, products, profiles, collections }, months = 6,
   const best = [...top.values()].sort((a, b) => b.units - a.units || b.revenue - a.revenue || a.productId.localeCompare(b.productId))
     .map((entry) => ({ ...entry, revenue: entry.revenue / 100 }));
   const sorted = [...orders].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)) || a.id.localeCompare(b.id));
-  return { stats: { totalSales: sum(active.map((order) => amount(order.total))) / 100, totalOrders: orders.length,
-    totalProducts: products.filter((product) => !product.archived).length, totalCustomers: profiles.filter((profile) => profile.role === 'customer').length },
-    sales, status: STATUSES.map((status) => ({ status, count: orders.filter((order) => order.status === status).length })),
+  const customers = profiles.filter((profile) => profile.role === 'customer' && (!confirmedIds || confirmedIds.has(profile.id)));
+  return { stats: { totalSales: total(received), awaitingCollection: total(awaitingCollection), totalOrders: orders.length,
+    cancelledOrders: orders.filter((order) => order.status === 'Cancelled').length,
+    totalProducts: products.filter((product) => !product.archived).length, totalCustomers: customers.length },
+    sales, daily, status: STATUSES.map((status) => ({ status, count: orders.filter((order) => order.status === status).length })),
     recent: sorted.slice(0, 6).map(toOrder), best: best.slice(0, 5),
     analytics: { byStone: collections.map((collection) => ({ stone: collection.stone, color: collection.color,
       units: sum(values.filter((entry) => entry.stone === collection.stone).map((entry) => entry.units)),

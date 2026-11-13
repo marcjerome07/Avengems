@@ -220,8 +220,10 @@ test('persistent settings validate bounded finite money and never change protect
 test('empty dashboard/analytics/customers report genuine zero sales and no invented orders', async () => {
   await api(async ({ send }) => {
     const dashboard = (await send('/api/admin/dashboard')).body;
-    assert.equal(dashboard.stats.totalSales, 0); assert.equal(dashboard.stats.totalOrders, 0); assert.equal(dashboard.stats.totalCustomers, 1);
+    // The only customer profile has no confirmed email in the fake Auth directory, so it isn't counted.
+    assert.equal(dashboard.stats.totalSales, 0); assert.equal(dashboard.stats.totalOrders, 0); assert.equal(dashboard.stats.totalCustomers, 0);
     assert.ok(dashboard.sales.every((month) => month.sales === 0 && month.orders === 0));
+    assert.equal(dashboard.daily.length, 30); assert.ok(dashboard.daily.every((day) => day.sales === 0 && day.orders === 0));
     assert.deepEqual(dashboard.recent, []); assert.deepEqual(dashboard.best, []);
     assert.equal((await send('/api/admin/analytics')).body.topProducts.length, 0);
     const customers = (await send('/api/admin/customers')).body.items;
@@ -321,11 +323,32 @@ test('Auth directory scan has a fixed page limit, preserves partial verified res
   assert.equal(calls, 25); assert.equal(result.available, false); assert.equal(result.emails.get(customer), 'found@example.test');
 });
 
-test('reports use exact order snapshots, exclude cancelled value and group monthly reports in UTC', () => {
+test('reports use exact order snapshots, exclude cancelled value and keep analytics on order value', () => {
   const data = reports({ orders: [order, { ...order, id: 'CANCELLED', status: 'Cancelled', total: '99999' }], products: [product], profiles: [profile], collections: [collection] }, 2, new Date('2026-11-07T00:00:00Z'));
-  assert.equal(data.stats.totalOrders, 2); assert.equal(data.stats.totalSales, 1800.2);
-  assert.equal(data.sales[0].sales, 0); assert.equal(data.sales[1].sales, 1800.2);
+  assert.equal(data.stats.totalOrders, 2); assert.equal(data.stats.cancelledOrders, 1);
+  // A pending Cash on Delivery order is not money received yet.
+  assert.equal(data.stats.totalSales, 0); assert.equal(data.stats.awaitingCollection, 1800.2);
   assert.equal(data.best[0].name, 'Historical Ring'); assert.equal(data.best[0].units, 2); assert.equal(data.analytics.byStone[0].revenue, 1800.2);
+});
+
+test('sales count money received, group by Philippine time and count only confirmed customers', () => {
+  const orders = [
+    // Nov 1, 1:00 AM in Manila = Oct 31 in UTC: belongs to November.
+    { ...order, id: 'COD-DELIVERED', status: 'Delivered', created_at: '2026-10-31T17:00:00Z', total: '100' },
+    { ...order, id: 'ONLINE-PAID', status: 'Pending', payment_method: 'gcash', payment_state: 'paid', created_at: '2026-11-06T02:00:00Z', total: '50' },
+    { ...order, id: 'ONLINE-UNPAID', status: 'Pending', payment_method: 'card', payment_state: 'pending', created_at: '2026-11-06T03:00:00Z', total: '999' },
+    { ...order, id: 'COD-SHIPPED', status: 'Shipped', created_at: '2026-11-06T04:00:00Z', total: '30' },
+  ];
+  const profiles = [profile, { ...profile, id: 'c-confirmed', role: 'customer' }, { ...profile, id: 'c-unconfirmed', role: 'customer' }];
+  const data = reports({ orders, products: [product], profiles, collections: [collection], confirmedIds: new Set(['c-confirmed']) },
+    2, new Date('2026-11-06T20:00:00Z'), 3);
+  assert.equal(data.stats.totalSales, 150); assert.equal(data.stats.awaitingCollection, 30);
+  assert.deepEqual(data.sales.map((m) => [m.label, m.sales]), [['Oct 2026', 0], ['Nov 2026', 150]]);
+  // "now" is Nov 7, 4:00 AM in Manila, so the last day shown is Nov 7.
+  assert.deepEqual(data.daily.map((d) => [d.date, d.sales]), [['2026-11-05', 0], ['2026-11-06', 50], ['2026-11-07', 0]]);
+  assert.equal(data.daily[1].label, 'Nov 6');
+  assert.equal(data.stats.totalCustomers, 1);
+  assert.equal(reports({ orders: [], products: [], profiles, collections: [] }).stats.totalCustomers, 2);
 });
 
 test('admin pagination includes records beyond the first batch and public collections preserve field mapping', async () => {

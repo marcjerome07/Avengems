@@ -3,7 +3,8 @@ import OrderReference from '../../components/account/OrderReference';
 import { Wallet, Package, Gem, Users, ArrowRight } from 'lucide-react';
 import AdminHeader from '../../components/admin/AdminHeader';
 import AdminDataState from '../../components/admin/AdminDataState';
-import { SalesLineChart, StatusDonut } from '../../components/admin/Charts';
+import { useState } from 'react';
+import { SalesChart, StatusDonut } from '../../components/admin/Charts';
 import StatCard from '../../components/ui/StatCard';
 import Skeleton, { TableSkeleton } from '../../components/ui/Skeleton';
 import { StatusBadge } from '../../components/ui/Badge';
@@ -17,7 +18,8 @@ import { STONE_THEME } from '../../utils/stoneTheme';
 export default function Dashboard() {
   useDocumentTitle('Admin Dashboard');
   const { data, error, reload } = useServiceData(getDashboardData);
-  const sales = { data: data?.sales }, status = { data: data?.status }, recent = { data: data?.recent }, best = { data: data?.best };
+  const [range, setRange] = useState('daily');
+  const sales = { data: range === 'daily' ? data?.daily : data?.sales }, status = { data: data?.status }, recent = { data: data?.recent }, best = { data: data?.best };
   const s = data?.stats;
   if (error) return <><AdminHeader title="Dashboard" /><AdminDataState error={error} onRetry={reload} /></>;
 
@@ -25,19 +27,20 @@ export default function Dashboard() {
     <>
       <AdminHeader title="Dashboard" subtitle="A quick look at how Avengems is doing." />
       <AdminDataState error={error} onRetry={reload} />
-      <p className="admin-note">Demo order value excludes cancellations and includes shipping. No real payments are collected. Monthly reports use UTC.</p>
+      <p className="admin-note">Sales count money received: paid GCash and card orders, plus Cash on Delivery orders once delivered.</p>
 
       <div className="stat-grid">
         <StatCard
           label="Total Sales"
           value={s ? formatPrice(s.totalSales) : '–'}
           icon={Wallet}
-          hint="Demo order value; excludes cancellations"
+          hint={s ? `${formatPrice(s.awaitingCollection)} more awaiting Cash on Delivery` : 'Money received'}
           accent={STONE_THEME.mind.base}
         />
-        <StatCard label="Total Orders" value={s ? s.totalOrders : '–'} icon={Package} accent={STONE_THEME.space.base} />
-        <StatCard label="Total Products" value={s ? s.totalProducts : '–'} icon={Gem} accent={STONE_THEME.power.base} />
-        <StatCard label="Total Customers" value={s ? s.totalCustomers : '–'} icon={Users} accent={STONE_THEME.time.base} />
+        <StatCard label="Total Orders" value={s ? s.totalOrders : '–'} icon={Package}
+          hint={s ? `Including ${s.cancelledOrders} cancelled` : undefined} accent={STONE_THEME.space.base} />
+        <StatCard label="Total Products" value={s ? s.totalProducts : '–'} icon={Gem} hint="In the shop (not archived)" accent={STONE_THEME.power.base} />
+        <StatCard label="Total Customers" value={s ? s.totalCustomers : '–'} icon={Users} hint="Verified accounts" accent={STONE_THEME.time.base} />
       </div>
 
       <div className="admin-grid-2">
@@ -46,9 +49,16 @@ export default function Dashboard() {
             <h2 id="sales-title" className="panel__title">
               Sales Overview
             </h2>
-            <span className="admin-note">Last 6 months · revenue</span>
+            <div className="sales-range" role="group" aria-label="Sales period">
+              {[['daily', 'Last 30 days'], ['monthly', 'Last 6 months']].map(([value, label]) => (
+                <button key={value} type="button" className={`pill ${range === value ? 'is-active' : ''}`}
+                  aria-pressed={range === value} onClick={() => setRange(value)}>
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
-          {sales.data ? <SalesLineChart data={sales.data} /> : <Skeleton height={280} />}
+          {sales.data ? <SalesChart data={sales.data} /> : <Skeleton height={280} />}
         </section>
         <section className="panel" aria-labelledby="status-title">
           <div className="panel__head">
