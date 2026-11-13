@@ -60,7 +60,8 @@ function ProductView({ product }) {
 
   async function handleBuyNow() {
     if (!(await requireLogin(`buy ${product.name}`))) return;
-    if (addItem(product, { size, quantity, silent: true })) navigate('/checkout');
+    // Checks out only this piece; anything else in the cart stays there, unticked.
+    if (addItem(product, { size, quantity, silent: true, buyNow: true })) navigate('/checkout');
   }
 
   const accordionItems = [

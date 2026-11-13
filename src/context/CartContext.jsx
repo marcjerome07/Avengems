@@ -43,7 +43,8 @@ export function CartProvider({ children }) {
 
   const addItem = useCallback(
     // bundle: optional package name (e.g. 'Infinity Trio') shown as a tag on the line; display only, never sent to the server.
-    (product, { size = product.defaultSize, quantity = 1, silent = false, bundle } = {}) => {
+    // buyNow: check out only this piece in exactly `quantity`: every other line is unticked (but stays in the cart).
+    (product, { size = product.defaultSize, quantity = 1, silent = false, bundle, buyNow = false } = {}) => {
       // Stone color is fixed per product; a caller can never change it.
       const color = product.color;
       if (product.stock <= 0) {
@@ -54,11 +55,13 @@ export function CartProvider({ children }) {
       const lineId = cartService.lineIdFor(product.id, color, size);
       const maxQty = Math.min(MAX_PER_LINE, product.stock);
 
-      setItems((prev) => {
+      setItems((current) => {
+        const prev = buyNow ? current.map((i) => ({ ...i, selected: false })) : current;
         const existing = prev.find((i) => i.lineId === lineId);
         if (existing) {
+          const nextQuantity = buyNow ? quantity : existing.quantity + quantity;
           return prev.map((i) => (i.lineId === lineId
-            ? { ...i, selected: true, quantity: Math.min(maxQty, i.quantity + quantity), ...(bundle ? { bundle } : {}) } : i));
+            ? { ...i, selected: true, quantity: Math.min(maxQty, nextQuantity), ...(bundle ? { bundle } : {}) } : i));
         }
         return [
           ...prev,
